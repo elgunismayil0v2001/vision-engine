@@ -1,0 +1,10 @@
+# Week 2: export the week-1 classifier to ONNX (dynamic batch, opset 17).
+# python -m export --config export/configs/export.yaml
+seed: 42
+model_name: mobilenet_v3_small
+num_classes: 102
+image_size: 224
+opset: 17
+onnx_path: outputs/flowers102_mobilenetv3_small/model.onnx
+checkpoint: outputs/flowers102_mobilenetv3_small/best.pt
+pretrained: false
