@@ -1,0 +1,16 @@
+# Tiny run for CI / local sanity. Uses the same code path as baseline.
+seed: 42
+dataset: flowers102
+data_root: data
+model_name: mobilenet_v3_small
+pretrained: false
+num_classes: 102
+image_size: 64
+epochs: 1
+batch_size: 4
+learning_rate: 0.001
+weight_decay: 0.0
+num_workers: 0
+output_dir: outputs/smoke
+max_train_samples: 8
+max_val_samples: 8

@@ -1,0 +1,18 @@
+# Week 1 baseline: MobileNetV3-Small on Flowers102.
+# Reproduce with: python -m train --config train/configs/baseline.yaml
+seed: 42
+dataset: flowers102
+data_root: data
+model_name: mobilenet_v3_small
+pretrained: true
+num_classes: 102
+image_size: 224
+epochs: 5
+batch_size: 32
+learning_rate: 0.001
+weight_decay: 0.01
+# 0 avoids multiprocessing issues on macOS; raise on Linux if you want.
+num_workers: 0
+output_dir: outputs/flowers102_mobilenetv3_small
+max_train_samples: null
+max_val_samples: null
