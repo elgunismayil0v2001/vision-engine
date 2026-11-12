@@ -1,0 +1,11 @@
+# Run after training the week-1 Flowers102 baseline.
+seed: 42
+train_config: train/configs/baseline.yaml
+checkpoint: outputs/flowers102_mobilenetv3_small/best.pt
+output_dir: bench/flowers102
+warmup_iterations: 20
+benchmark_iterations: 200
+num_threads: 1
+pruning_amount: 0.5
+quantization_backend: qnnpack
+calibration_batches: 32

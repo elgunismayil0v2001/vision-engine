@@ -16,6 +16,7 @@ checkpoints/
 *.pth
 *.onnx
 *.ckpt
+.parity_logits/
 
 .DS_Store
 .env
