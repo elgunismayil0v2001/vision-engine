@@ -373,7 +373,7 @@ private:
 
     void finish_stats(
         VideoPipelineStats& result,
-        const TimingSamples& samples,
+        TimingSamples& samples,
         Clock::time_point wall_start,
         std::size_t frame_count
     ) const {
