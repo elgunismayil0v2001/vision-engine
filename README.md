@@ -9,7 +9,7 @@ Primary machine is a Mac M2 Air (no CUDA). GPU work is Colab/Kaggle later; every
 
 See [AGENTS.md](AGENTS.md) for milestones and engineering rules.
 
-## Current milestone: week 5 (image preprocessing kernels)
+## Current milestone: week 6 (CUDA video preprocessing pipeline)
 
 The Week 3 harness compares the trained baseline with globally pruned, dynamic int8, and pruned+int8 variants. It evaluates top-1 accuracy on validation images and benchmarks CPU batch-1 latency in isolated processes.
 
@@ -155,25 +155,40 @@ python bench/preprocess/run_benchmark.py \
 
 The Mac M2 Air run used Apple LLVM 21, macOS 27.2.1, a 640×480 deterministic
 input, 20 warmups, and 200 timed calls. NEON output matched the scalar reference
-within 1e-6. OpenMP was not available in this local toolchain, so its row is a
-scalar fallback and is not an OpenMP speed measurement.
+within 1e-6. OpenMP was unavailable in this local toolchain, so its Mac row is a
+scalar fallback. Colab reported 2 logical CPUs; the OpenMP row explicitly used
+4 threads. The GPU was a Tesla T4 with 2,560 CUDA cores
+([NVIDIA T4 specifications](https://www.nvidia.com/en-us/data-center/tesla-t4/));
+the log reports GCC 13.3 and CUDA 13.0. Both runs use 640×480 RGB data and report
+latency for the full call. The CUDA measurement includes host/device copies.
 
-| Kernel | Effective threads | p50 (ms) | p99 (ms) | Speedup vs scalar |
+| Kernel | Mac M2 p50 / p99 (ms) | Mac speedup | Colab T4 p50 / p99 (ms) | T4 speedup |
 |---|---:|---:|---:|---:|
-| Scalar reference | 1 | 4.635 | 5.560 | 1.00× |
-| OpenMP unavailable; scalar fallback | 1 | 4.703 | 6.592 | 0.99× |
-| ARM NEON | 1 | 4.518 | 5.722 | 1.03× |
+| Scalar reference | 4.635 / 5.560 | 1.00× | 15.220 / 23.470 | 1.00× |
+| OpenMP static, 4 threads | scalar fallback: 4.703 / 6.592 | 0.99× | 13.222 / 29.535 | 1.15× |
+| NEON | 4.518 / 5.722 | 1.03× | scalar fallback: 15.176 / 23.176 | 1.00× |
+| CUDA, including transfers | not built | — | 1.173 / 3.182 | 12.97× |
 
 Hardware, compiler, git revision, warmup/iteration settings, p99.9, and parity
-error are in the [raw Mac run record](bench/preprocess/macos_m2.json).
+error are in the [Mac raw log](bench/preprocess/macos_m2.json) and [Colab T4 raw log](bench/preprocess/colab_t4.json).
 
-For the CUDA build and T4 measurements, open [week5_colab.ipynb](bench/preprocess/week5_colab.ipynb)
-in Colab, select a T4 runtime, set the Drive repository path, then run all cells.
-It builds with `-DENABLE_CUDA=ON`, checks parity and CPU fallback, and writes
-`bench/preprocess/colab_t4.json` to Drive. CUDA timing includes both host/device
-copies and uses preallocated buffers. This workspace has no connected Colab
-runtime, so no CUDA speedup is reported here; the Week 5 GPU measurement remains
-to be run in that notebook.
+## Week 6: CUDA video preprocessing pipeline
+
+`CudaVideoPipeline` accepts contiguous, already-decoded RGB frames. Its CUDA
+path allocates pinned host buffers, device buffers, and nonblocking streams once
+at construction. Frames alternate across stream slots; H2D copy, normalization,
+and D2H copy are queued asynchronously. The CPU fallback normalizes each frame
+with the Week 5 scalar reference. Tests compare both modes against that
+reference. This stage does not include video decoding or detector inference.
+
+Open [week6_colab.ipynb](bench/video/week6_colab.ipynb) in Colab, select a T4
+runtime, and run the cells after pushing the Week 6 source commit. It runs CTest,
+then compares one stream with two streams over 120 deterministic 640×480 frames.
+The output records FPS and p50/p99/p99.9 for CPU input staging, H2D, normalize
+kernel, D2H, CPU output copy, and per-frame end-to-end time. CUDA stage timings
+use events; FPS includes staging and output copies. Save the resulting JSON in
+`bench/video/` before reporting GPU measurements. This workspace has not run the
+Week 6 benchmark on Colab yet, so there are no FPS or latency results to quote.
 
 Tests (synthetic tensors; no Flowers102 download):
 
@@ -185,4 +200,4 @@ black --check train export optimize tests
 
 ## Status
 
-Week 1's full Flowers102 run, Week 2's ONNX/C++ inference and parity gate, and Week 3's measured optimization table are complete. Week 4's resumable VisDrone pipeline and validation metric are implemented; its local smoke run used 16 training images, and the configured full training remains for Colab/Kaggle. Week 5's CPU paths, parity tests, and Mac NEON measurement are complete. Its OpenMP measurement requires an OpenMP toolchain, and its CUDA parity test and T4 measurement remain to be run in Colab.
+Week 1's full Flowers102 run, Week 2's ONNX/C++ inference and parity gate, and Week 3's measured optimization table are complete. Week 4's resumable VisDrone pipeline and validation metric are implemented; its local smoke run used 16 training images, and the configured full training remains for Colab/Kaggle. Week 5's OpenMP, NEON, and CUDA parity and preprocessing measurements are recorded in the CPU and T4 logs. Week 6's stream and pinned-memory pipeline and Colab benchmark are implemented; its T4 FPS and per-stage latency run remains pending.

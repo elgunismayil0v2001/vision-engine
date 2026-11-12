@@ -1,6 +1,7 @@
 #include "vision_engine/preprocess_cuda.hpp"
 
 #include "preprocess_common.hpp"
+#include "preprocess_cuda_internal.hpp"
 #include "vision_engine/preprocess.hpp"
 
 #include <cuda_runtime.h>
@@ -43,6 +44,27 @@ __global__ void normalize_rgb_kernel(
 }
 
 }  // namespace
+
+namespace detail {
+
+void launch_normalize_rgb_cuda(
+    const std::uint8_t* device_rgb,
+    std::size_t pixel_count,
+    float* device_output,
+    cudaStream_t stream
+) {
+    const std::size_t block_count =
+        (pixel_count + kThreadsPerBlock - 1) / kThreadsPerBlock;
+    if (block_count > std::numeric_limits<unsigned int>::max()) {
+        throw std::overflow_error("image is too large for the CUDA grid dimensions");
+    }
+    normalize_rgb_kernel<<<static_cast<unsigned int>(block_count), kThreadsPerBlock, 0, stream>>>(
+        device_rgb, pixel_count, device_output
+    );
+    cuda_check(cudaGetLastError(), "launch CUDA normalization kernel");
+}
+
+}  // namespace detail
 
 CudaPreprocessor::CudaPreprocessor(
     std::size_t width,
@@ -112,15 +134,9 @@ void CudaPreprocessor::process(
         cudaMemcpy(device_rgb_, rgb.data(), element_count_, cudaMemcpyHostToDevice),
         "copy RGB input to CUDA device"
     );
-    const std::size_t block_count =
-        (pixel_count_ + kThreadsPerBlock - 1) / kThreadsPerBlock;
-    if (block_count > std::numeric_limits<unsigned int>::max()) {
-        throw std::overflow_error("image is too large for the CUDA grid dimensions");
-    }
-    normalize_rgb_kernel<<<static_cast<unsigned int>(block_count), kThreadsPerBlock>>>(
-        device_rgb_, pixel_count_, device_output_
+    detail::launch_normalize_rgb_cuda(
+        device_rgb_, pixel_count_, device_output_, nullptr
     );
-    cuda_check(cudaGetLastError(), "launch CUDA normalization kernel");
     cuda_check(
         cudaMemcpy(
             output.data(),

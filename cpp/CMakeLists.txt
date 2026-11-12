@@ -34,6 +34,7 @@ set_target_properties(ONNXRuntime::onnxruntime PROPERTIES
 add_library(vision_engine
     src/onnx_classifier.cpp
     src/preprocess.cpp
+    src/video_pipeline_fallback.cpp
 )
 target_include_directories(vision_engine PUBLIC include)
 target_compile_features(vision_engine PUBLIC cxx_std_20)
@@ -54,13 +55,26 @@ endif()
 if(ENABLE_CUDA)
     enable_language(CUDA)
     find_package(CUDAToolkit REQUIRED)
-    target_sources(vision_engine PRIVATE src/preprocess_cuda.cu)
+    target_sources(vision_engine PRIVATE
+        src/preprocess_cuda.cu
+        src/video_pipeline_cuda.cu
+    )
     target_compile_definitions(vision_engine PUBLIC VISION_ENGINE_HAS_CUDA=1)
     target_link_libraries(vision_engine PUBLIC CUDA::cudart)
     set_target_properties(vision_engine PROPERTIES
         CUDA_STANDARD 20
         CUDA_STANDARD_REQUIRED ON
     )
+
+    add_executable(video_pipeline_benchmark src/video_pipeline_benchmark.cpp)
+    target_compile_features(video_pipeline_benchmark PRIVATE cxx_std_20)
+    target_compile_options(video_pipeline_benchmark PRIVATE -Wall -Wextra -Wpedantic)
+    target_link_libraries(video_pipeline_benchmark PRIVATE vision_engine)
+    if(UNIX)
+        set_target_properties(video_pipeline_benchmark PROPERTIES
+            BUILD_RPATH "${ONNXRUNTIME_ROOT}/lib"
+        )
+    endif()
 endif()
 
 add_executable(vision_engine_cli src/main.cpp)
@@ -109,6 +123,11 @@ if(BUILD_TESTING)
     target_compile_options(vision_engine_tests PRIVATE -Wall -Wextra -Wpedantic)
     target_link_libraries(vision_engine_tests PRIVATE vision_engine GTest::gtest_main)
     add_test(NAME vision_engine_tests COMMAND vision_engine_tests)
+    add_executable(video_pipeline_tests tests/video_pipeline_test.cpp)
+    target_compile_features(video_pipeline_tests PRIVATE cxx_std_20)
+    target_compile_options(video_pipeline_tests PRIVATE -Wall -Wextra -Wpedantic)
+    target_link_libraries(video_pipeline_tests PRIVATE vision_engine GTest::gtest_main)
+    add_test(NAME video_pipeline_tests COMMAND video_pipeline_tests)
     add_test(
         NAME preprocess_benchmark_smoke
         COMMAND preprocess_benchmark
@@ -121,6 +140,12 @@ if(BUILD_TESTING)
         target_compile_options(vision_engine_cuda_tests PRIVATE -Wall -Wextra -Wpedantic)
         target_link_libraries(vision_engine_cuda_tests PRIVATE vision_engine GTest::gtest_main)
         add_test(NAME vision_engine_cuda_tests COMMAND vision_engine_cuda_tests)
+
+        add_test(
+            NAME video_pipeline_benchmark_smoke
+            COMMAND video_pipeline_benchmark
+                --width 17 --height 13 --frames 4 --warmup-frames 1
+        )
     endif()
 
     find_package(Python3 REQUIRED COMPONENTS Interpreter)

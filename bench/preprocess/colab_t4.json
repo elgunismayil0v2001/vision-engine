@@ -1,0 +1,68 @@
+{
+  "metadata": {
+    "os": "Linux",
+    "architecture": "x86_64",
+    "compiler": "13.3.0",
+    "logical_cpu_count": 2,
+    "omp_enabled": true,
+    "neon_enabled": false,
+    "cuda_compiled": true,
+    "cuda_active": true,
+    "cuda_device": "Tesla T4",
+    "width": 640,
+    "height": 480,
+    "thread_count": 4,
+    "warmup_iterations": 50,
+    "timed_iterations": 500,
+    "input_pattern": "rgb[index] = (index * 37 + 11) % 256",
+    "openmp_schedule": "static",
+    "timing_method": "steady_clock per call; CUDA includes H2D/D2H copies",
+    "git_hash": "9b107a30db03fe7d5a524e72c2cd0317300fe571",
+    "timestamp_utc": "2026-11-12T19:13:25.773650+00:00",
+    "platform": "Linux-6.6.159+-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "python": "3.13.16",
+    "nvcc": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2025 NVIDIA Corporation\nBuilt on Wed_Aug_20_01:58:59_PM_PDT_2025\nCuda compilation tools, release 13.0, V13.0.88\nBuild cuda_13.0.r13.0/compiler.36424714_0",
+    "nvidia_smi": "Tesla T4, 580.82.07, 15360 MiB",
+    "gpu_cuda_core_count": 2560,
+    "gpu_cuda_core_count_source": "https://www.nvidia.com/en-us/data-center/tesla-t4/"
+  },
+  "results": [
+    {
+      "kernel": "scalar",
+      "threads_used": 1,
+      "p50_ms": 15.220044,
+      "p99_ms": 23.470263,
+      "p999_ms": 26.235649,
+      "max_abs_error": 0.0,
+      "speedup_vs_scalar": 1.0
+    },
+    {
+      "kernel": "openmp_static",
+      "threads_used": 4,
+      "p50_ms": 13.222283,
+      "p99_ms": 29.534567,
+      "p999_ms": 37.652194,
+      "max_abs_error": 0.0,
+      "speedup_vs_scalar": 1.15109
+    },
+    {
+      "kernel": "neon_scalar_fallback",
+      "threads_used": 1,
+      "p50_ms": 15.176394,
+      "p99_ms": 23.17572,
+      "p999_ms": 28.819581,
+      "max_abs_error": 0.0,
+      "speedup_vs_scalar": 1.002876
+    },
+    {
+      "kernel": "cuda_with_transfers",
+      "threads_used": 1,
+      "p50_ms": 1.173337,
+      "p99_ms": 3.181732,
+      "p999_ms": 3.329177,
+      "max_abs_error": 0.0,
+      "speedup_vs_scalar": 12.971588
+    }
+  ]
+}
