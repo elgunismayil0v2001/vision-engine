@@ -39,9 +39,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--eval-only", action="store_true")
     parser.add_argument("--data-root", default=None)
     parser.add_argument("--output-dir", default=None)
-    parser.add_argument(
-        "--device", choices=("auto", "cpu", "mps", "cuda"), default="auto"
-    )
+    parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
     return parser.parse_args()
 
 
@@ -94,8 +92,6 @@ def _resolve_device(preference: str) -> torch.device:
         return torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if preference == "cpu":
         return torch.device("cpu")
-    if preference == "mps" and torch.backends.mps.is_available():
-        return torch.device("mps")
     if preference == "cuda" and torch.cuda.is_available():
         return torch.device("cuda")
     raise RuntimeError(f"requested detector device is unavailable: {preference}")
