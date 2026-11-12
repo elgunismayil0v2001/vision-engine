@@ -162,6 +162,17 @@ Drive paths as `--data-root` and `--output-dir` on both commands, then resume
 from `<output-dir>/last.pt` after reconnecting. The automatic device selection
 uses CUDA when available and CPU otherwise; `--device cpu` forces the fallback.
 
+For the full run, use [bench/visdrone/train_colab.ipynb](bench/visdrone/train_colab.ipynb).
+It mounts Drive and stores the dataset, checkpoints, and live metrics there. The
+configured run performs 16,180 training batches and ten full validation passes;
+plan for several hours and possibly multiple Colab sessions. Exact full-run time
+has not been measured. After reconnecting, rerun the setup, paths, download, and
+training cells; the notebook resumes automatically from Drive's
+`<output-dir>/last.pt`.
+When training finishes, it copies `summary.json` as `raw.json`, plus
+`metrics.jsonl` and `run.json`, to the Drive results folder. The notebook uses
+Colab's Drive mount; Kaggle would need separate Drive authentication setup.
+
 | Run | Train images | Epochs | Validation images | mAP@[.50:.95] | mAP@.50 |
 |---|---:|---:|---:|---:|---:|
 | Local smoke, seed 42 | 16 | 1 | 548 | 0.20% | 0.67% |
