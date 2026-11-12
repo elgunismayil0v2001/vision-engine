@@ -160,9 +160,12 @@ scalar fallback and is not an OpenMP speed measurement.
 
 | Kernel | Effective threads | p50 (ms) | p99 (ms) | Speedup vs scalar |
 |---|---:|---:|---:|---:|
-| Scalar reference | 1 | 4.771 | 5.923 | 1.00× |
-| OpenMP unavailable; scalar fallback | 1 | 4.757 | 6.162 | 1.00× |
-| ARM NEON | 1 | 4.509 | 5.188 | 1.06× |
+| Scalar reference | 1 | 4.635 | 5.560 | 1.00× |
+| OpenMP unavailable; scalar fallback | 1 | 4.703 | 6.592 | 0.99× |
+| ARM NEON | 1 | 4.518 | 5.722 | 1.03× |
+
+Hardware, compiler, git revision, warmup/iteration settings, p99.9, and parity
+error are in the [raw Mac run record](bench/preprocess/macos_m2.json).
 
 For the CUDA build and T4 measurements, open [week5_colab.ipynb](bench/preprocess/week5_colab.ipynb)
 in Colab, select a T4 runtime, set the Drive repository path, then run all cells.

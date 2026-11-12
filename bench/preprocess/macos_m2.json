@@ -1,0 +1,57 @@
+{
+  "metadata": {
+    "os": "macOS",
+    "architecture": "arm64",
+    "compiler": "Apple LLVM 21.0.0 (clang-2100.4.1.1)",
+    "logical_cpu_count": 8,
+    "omp_enabled": false,
+    "neon_enabled": true,
+    "cuda_compiled": false,
+    "cuda_active": false,
+    "cuda_device": "",
+    "width": 640,
+    "height": 480,
+    "thread_count": 4,
+    "warmup_iterations": 20,
+    "timed_iterations": 200,
+    "input_pattern": "rgb[index] = (index * 37 + 11) % 256",
+    "openmp_schedule": "static",
+    "timing_method": "steady_clock per call; CUDA includes H2D/D2H copies",
+    "git_hash": "e944043b959210d1548140fd86d59823d3f33a6e",
+    "timestamp_utc": "2026-11-12T18:28:31.709128+00:00",
+    "platform": "macOS-27.2.1-arm64-arm-64bit-Mach-O",
+    "processor": "arm",
+    "python": "3.13.0",
+    "nvcc": "unavailable",
+    "nvidia_smi": "unavailable"
+  },
+  "results": [
+    {
+      "kernel": "scalar",
+      "threads_used": 1,
+      "p50_ms": 4.63525,
+      "p99_ms": 5.560375,
+      "p999_ms": 5.792292,
+      "max_abs_error": 0.0,
+      "speedup_vs_scalar": 1.0
+    },
+    {
+      "kernel": "openmp_scalar_fallback",
+      "threads_used": 1,
+      "p50_ms": 4.703,
+      "p99_ms": 6.592,
+      "p999_ms": 6.797417,
+      "max_abs_error": 0.0,
+      "speedup_vs_scalar": 0.985594
+    },
+    {
+      "kernel": "neon",
+      "threads_used": 1,
+      "p50_ms": 4.517625,
+      "p99_ms": 5.722209,
+      "p999_ms": 7.172291,
+      "max_abs_error": 1e-06,
+      "speedup_vs_scalar": 1.026037
+    }
+  ]
+}
