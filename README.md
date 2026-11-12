@@ -43,16 +43,61 @@ pip install -r requirements-dev.txt
 python -m train --config train/configs/baseline.yaml
 ```
 
-The full Flowers102 baseline run and Week 3 CPU comparison are complete. The current checkout has not completed Week 2's C++ inference and parity gate.
+The full Flowers102 baseline run and Week 3 CPU comparison are complete.
+
+## Week 2: ONNX export and C++ inference
+
+Export the Week 1 checkpoint with a dynamic batch axis, then run the C++20 CPU engine. The ONNX file and JSON sidecar are written under `outputs/` and are ignored by git.
+
+```bash
+pip install -r requirements-dev.txt
+python -m export --config export/configs/export.yaml
+```
+
+Install the pinned Python packages through `requirements-dev.txt`. The C++ build also needs the ONNX Runtime 1.31.1 CPU C++ SDK for the host platform. For Apple Silicon:
+
+```bash
+curl -L --fail https://github.com/microsoft/onnxruntime/releases/download/v1.31.1/onnxruntime-osx-arm64-1.31.1.tgz -o /tmp/onnxruntime-osx-arm64-1.31.1.tgz
+mkdir -p /tmp/onnxruntime-sdk
+tar -xzf /tmp/onnxruntime-osx-arm64-1.31.1.tgz --strip-components=1 -C /tmp/onnxruntime-sdk
+cmake -S cpp -B build/cpp \
+  -DONNXRUNTIME_ROOT=/tmp/onnxruntime-sdk \
+  -DPython3_EXECUTABLE="$PWD/.venv/bin/python"
+cmake --build build/cpp
+ctest --test-dir build/cpp --output-on-failure
+```
+
+For AddressSanitizer and UndefinedBehaviorSanitizer, repeat the CMake build with `-DENABLE_SANITIZERS=ON`.
+
+For Linux x86_64, use the `onnxruntime-linux-x64-1.31.1.tgz` asset in place of the macOS SDK. CMake uses installed GoogleTest 1.15.2 or fetches that exact tag. The CTest suite checks RGB preprocessing against torchvision, then checks PyTorch, Python ONNX Runtime, and the C++ executable on dynamic batch sizes 1 and 2. The parity test uses a deterministic small model and does not download Flowers102. The runtime CLI accepts caller-provided float32 NCHW buffers and writes logits to a float32 file; its preprocessing command converts RGB uint8 pixels to the same ImageNet-normalized NCHW representation as Week 1.
+
+The C++ engine allocates reusable input and output tensors at construction for batch sizes from 1 through the configured maximum, then copies to and from those buffers on each call. CTest warms batches 1 and 2 and counts global C++ `operator new` calls across 100 inference calls. On this Mac with ONNX Runtime 1.31.1, the synthetic model currently reports 24 calls per inference across the engine and runtime. That does not satisfy the project's zero-allocation target; the counter also cannot observe allocations made through C `malloc`. Use `ctest --verbose` to see the allocation probe output.
+
+Recheck the exported Flowers102 checkpoint against PyTorch, Python ONNX Runtime, and C++:
+
+```bash
+python -m export.parity \
+  --config export/configs/export.yaml \
+  --cpp-binary build/cpp/vision_engine_cli
+```
+
+On the Mac M2 Air CPU, the trained checkpoint produced these maximum absolute logit differences for seeded random float32 inputs (tolerance: `rtol=1e-4`, `atol=1e-5`):
+
+| Batch | PyTorch vs ONNX Runtime | PyTorch vs C++ |
+|---:|---:|---:|
+| 1 | 3.04e-6 | 2.58e-6 |
+| 2 | 2.44e-6 | 2.44e-6 |
+
+The CTest suite also compares the C++ RGB-to-NCHW normalizer with torchvision on identical uint8 pixels. These checks validate inference and normalization parity; they do not measure C++ accuracy on the full Flowers102 validation split.
 
 Tests (synthetic tensors; no Flowers102 download):
 
 ```bash
 pytest
-ruff check train optimize tests
-black --check train optimize tests
+ruff check train export optimize tests
+black --check train export optimize tests
 ```
 
 ## Status
 
-Week 1's full Flowers102 run and Week 3's measured optimization table are complete. Week 2's C++ inference/parity work remains incomplete in this checkout.
+Week 1's full Flowers102 run, Week 2's ONNX/C++ inference and parity gate, and Week 3's measured optimization table are complete.

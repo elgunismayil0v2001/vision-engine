@@ -5,6 +5,7 @@ import json
 from dataclasses import replace
 from pathlib import Path
 
+import onnx
 import torch
 
 from export.config import ExportConfig
@@ -45,6 +46,7 @@ def export_onnx(cfg: ExportConfig) -> Path:
         pretrained=cfg.pretrained if ckpt is None else False,
         checkpoint=ckpt,
     )
+    model.eval()
 
     dummy = torch.randn(1, 3, cfg.image_size, cfg.image_size)
     out_path = Path(cfg.onnx_path)
@@ -60,7 +62,10 @@ def export_onnx(cfg: ExportConfig) -> Path:
             input_names=["input"],
             output_names=["logits"],
             dynamic_axes={"input": {0: "batch"}, "logits": {0: "batch"}},
+            dynamo=False,
         )
+
+    onnx.checker.check_model(out_path)
 
     sidecar = {
         "onnx_path": str(out_path),
@@ -71,6 +76,12 @@ def export_onnx(cfg: ExportConfig) -> Path:
         "input_name": "input",
         "output_name": "logits",
         "layout": "NCHW",
+        "preprocessing": {
+            "color_space": "RGB",
+            "scale": 1.0 / 255.0,
+            "mean": [0.485, 0.456, 0.406],
+            "std": [0.229, 0.224, 0.225],
+        },
         "image_size": cfg.image_size,
         "num_classes": cfg.num_classes,
     }

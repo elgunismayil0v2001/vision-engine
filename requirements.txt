@@ -5,3 +5,6 @@ torchvision==0.21.0
 PyYAML==6.0.2
 # torchvision.datasets.Flowers102 uses scipy.io.loadmat for its labels.
 scipy==1.15.3
+# Week 2 ONNX export and CPU parity checks.
+onnx==1.20.1
+onnxruntime==1.31.1
