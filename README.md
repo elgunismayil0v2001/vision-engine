@@ -27,10 +27,10 @@ Measured on the Mac M2 Air. The baseline was trained for five epochs on MPS; all
 
 | Variant | Top-1 accuracy | Top-1 agreement | Cosine similarity | p50 (ms) | p99 (ms) | State dict (bytes) | Peak RSS (bytes) | Sparsity |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Baseline | 74.22% | 100.00% | 1.000000 | 13.919 | 17.322 | 6,622,634 | 564,789,248 | 0% |
-| 50% pruned | 6.08% | 6.76% | 0.805185 | 13.199 | 15.406 | 6,622,138 | 540,114,944 | 50% |
-| Dynamic int8 | 74.31% | 99.51% | 0.999989 | 13.454 | 17.161 | 4,540,322 | 488,194,048 | 0% |
-| 50% pruned + dynamic int8 | 6.08% | 6.67% | 0.805332 | 13.371 | 14.917 | 4,542,150 | 490,651,648 | 50% |
+| Baseline | 74.22% | 100.00% | 1.000000 | 14.840 | 83.583 | 6,622,634 | 545,423,360 | 0% |
+| 50% pruned | 6.08% | 6.76% | 0.805185 | 15.081 | 30.044 | 6,622,138 | 540,753,920 | 50% |
+| Dynamic int8 | 74.31% | 99.51% | 0.999989 | 14.143 | 18.244 | 4,540,322 | 537,493,504 | 0% |
+| 50% pruned + dynamic int8 | 6.08% | 6.67% | 0.805332 | 14.086 | 17.388 | 4,542,150 | 567,017,472 | 50% |
 
 In this run, dynamic int8 reduced the saved state dict while retaining baseline accuracy and logits. Unstructured 50% pruning without fine-tuning severely damaged accuracy and did not reduce the dense state-dict size. The measurements are specific to this run and hardware; they are not a claim about production performance.
 

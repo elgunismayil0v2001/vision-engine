@@ -1,0 +1,80 @@
+{
+  "metadata": {
+    "seed": 42,
+    "git_hash": "3303d790b8624240c4af94bc8b57b40c8da0cade",
+    "timestamp_utc": "2026-11-12T10:08:28.146626+00:00",
+    "hardware": "macOS-27.2.1-arm64-arm-64bit-Mach-O",
+    "processor": "arm",
+    "os": "Darwin",
+    "python": "3.13.0",
+    "python_compiler": "Clang 15.0.0 (clang-1500.3.9.4)",
+    "torch": "2.6.0",
+    "thread_count": 1,
+    "warmup_iterations": 20,
+    "benchmark_iterations": 200,
+    "method": "CPU, batch=1, perf_counter_ns; validation accuracy, top-1 agreement, and cosine similarity",
+    "checkpoint": "outputs/flowers102_mobilenetv3_small/best.pt",
+    "train_config": "train/configs/baseline.yaml",
+    "quantization_backend": "qnnpack",
+    "pruning_amount": 0.5,
+    "quantization_method": "dynamic int8 for nn.Linear modules"
+  },
+  "results": [
+    {
+      "variant": "baseline",
+      "val_acc": 0.7421568627450981,
+      "val_loss": 1.118422953696812,
+      "val_samples": 1020,
+      "p50_ms": 14.8398955,
+      "p99_ms": 83.58266916999969,
+      "model_size_bytes": 6622634,
+      "peak_rss_bytes": 545423360,
+      "sparsity": 0.0,
+      "artifact": "bench/flowers102/artifacts/baseline.state_dict.pt",
+      "top1_agreement": 1.0,
+      "cosine_similarity": 1.0
+    },
+    {
+      "variant": "pruned",
+      "val_acc": 0.060784313725490195,
+      "val_loss": 4.370264281478582,
+      "val_samples": 1020,
+      "p50_ms": 15.081271000000001,
+      "p99_ms": 30.043583249999987,
+      "model_size_bytes": 6622138,
+      "peak_rss_bytes": 540753920,
+      "sparsity": 0.5,
+      "artifact": "bench/flowers102/artifacts/pruned.state_dict.pt",
+      "top1_agreement": 0.06764705882352941,
+      "cosine_similarity": 0.8051854182321888
+    },
+    {
+      "variant": "int8",
+      "val_acc": 0.7431372549019608,
+      "val_loss": 1.1188279611807244,
+      "val_samples": 1020,
+      "p50_ms": 14.142854,
+      "p99_ms": 18.24416207999998,
+      "model_size_bytes": 4540322,
+      "peak_rss_bytes": 537493504,
+      "sparsity": 0.0,
+      "artifact": "bench/flowers102/artifacts/int8.state_dict.pt",
+      "top1_agreement": 0.9950980392156863,
+      "cosine_similarity": 0.9999893838838732
+    },
+    {
+      "variant": "pruned_int8",
+      "val_acc": 0.060784313725490195,
+      "val_loss": 4.370340934454226,
+      "val_samples": 1020,
+      "p50_ms": 14.0858335,
+      "p99_ms": 17.38754058999998,
+      "model_size_bytes": 4542150,
+      "peak_rss_bytes": 567017472,
+      "sparsity": 0.5,
+      "artifact": "bench/flowers102/artifacts/pruned_int8.state_dict.pt",
+      "top1_agreement": 0.06666666666666667,
+      "cosine_similarity": 0.8053316029369902
+    }
+  ]
+}
