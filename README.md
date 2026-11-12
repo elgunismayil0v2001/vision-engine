@@ -181,14 +181,31 @@ and D2H copy are queued asynchronously. The CPU fallback normalizes each frame
 with the Week 5 scalar reference. Tests compare both modes against that
 reference. This stage does not include video decoding or detector inference.
 
-Open [week6_colab.ipynb](bench/video/week6_colab.ipynb) in Colab, select a T4
-runtime, and run the cells after pushing the Week 6 source commit. It runs CTest,
-then compares one stream with two streams over 120 deterministic 640×480 frames.
-The output records FPS and p50/p99/p99.9 for CPU input staging, H2D, normalize
-kernel, D2H, CPU output copy, and per-frame end-to-end time. CUDA stage timings
-use events; FPS includes staging and output copies. Save the resulting JSON in
-`bench/video/` before reporting GPU measurements. This workspace has not run the
-Week 6 benchmark on Colab yet, so there are no FPS or latency results to quote.
+The Colab T4 run processed 120 deterministic 640×480 frames after 16 warmup
+frames. It reported CUDA active for both variants and zero maximum absolute
+error against the scalar reference. The two-stream run raised throughput by
+37.6%, while per-frame end-to-end latency was higher in this run:
+
+| Streams | Throughput (FPS) | Gain vs. 1 stream | End-to-end p50 / p99 (ms) |
+|---:|---:|---:|---:|
+| 1 | 860.6 | 1.00× | 1.154 / 1.245 |
+| 2 | 1,184.5 | 1.38× | 1.664 / 1.874 |
+
+Stage timings below are p50 / p99 milliseconds. CUDA transfer and kernel times
+use events; FPS includes CPU input staging and output copies.
+
+| Stage | 1 stream | 2 streams |
+|---|---:|---:|
+| CPU input staging | 0.111 / 0.153 | 0.108 / 0.157 |
+| Host to device (H2D) | 0.084 / 0.106 | 0.086 / 0.101 |
+| Normalize kernel | 0.025 / 0.029 | 0.027 / 0.030 |
+| Device to host (D2H) | 0.286 / 0.306 | 0.286 / 0.305 |
+| CPU output copy | 0.623 / 0.688 | 0.677 / 0.764 |
+
+The runtime reported Linux x86_64, 2 logical CPUs, GCC 13.3, CUDA 13.0, and a
+Tesla T4. The [raw Week 6 result](bench/video/week6_t4.json) includes p99.9,
+driver details, exact metadata, and the source commit. The measurement covers
+synthetic already-decoded frames, not video decoding or detector inference.
 
 Tests (synthetic tensors; no Flowers102 download):
 
@@ -200,4 +217,4 @@ black --check train export optimize tests
 
 ## Status
 
-Week 1's full Flowers102 run, Week 2's ONNX/C++ inference and parity gate, and Week 3's measured optimization table are complete. Week 4's resumable VisDrone pipeline and validation metric are implemented; its local smoke run used 16 training images, and the configured full training remains for Colab/Kaggle. Week 5's OpenMP, NEON, and CUDA parity and preprocessing measurements are recorded in the CPU and T4 logs. Week 6's stream and pinned-memory pipeline and Colab benchmark are implemented; its T4 FPS and per-stage latency run remains pending.
+Week 1's full Flowers102 run, Week 2's ONNX/C++ inference and parity gate, and Week 3's measured optimization table are complete. Week 4's resumable VisDrone pipeline and validation metric are implemented; its local smoke run used 16 training images, and the configured full training remains for Colab/Kaggle. Week 5's OpenMP, NEON, and CUDA parity and preprocessing measurements are recorded in the CPU and T4 logs. Week 6's stream and pinned-memory pipeline is implemented, and its Colab T4 throughput and per-stage latency measurements are recorded above.

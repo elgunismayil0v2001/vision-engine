@@ -1,0 +1,113 @@
+{
+  "metadata": {
+    "os": "Linux",
+    "architecture": "x86_64",
+    "compiler": "13.3.0",
+    "logical_cpu_count": 2,
+    "cuda_device": "Tesla T4",
+    "width": 640,
+    "height": 480,
+    "frame_count": 120,
+    "warmup_frames": 16,
+    "input_format": "contiguous RGB uint8 frames",
+    "output_format": "contiguous normalized float NCHW frames",
+    "cuda_timing": "CUDA events per stage; FPS includes CPU staging and output copies",
+    "git_hash": "877acebf38c03d01575252cc615e3ba893357e10",
+    "timestamp_utc": "2026-11-12T20:40:10.021592+00:00",
+    "platform": "Linux-6.6.159+-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "python": "3.13.16",
+    "nvcc": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2025 NVIDIA Corporation\nBuilt on Wed_Aug_20_01:58:59_PM_PDT_2025\nCuda compilation tools, release 13.0, V13.0.88\nBuild cuda_13.0.r13.0/compiler.36424714_0",
+    "nvidia_smi": "Tesla T4, 580.82.07, 15360 MiB"
+  },
+  "results": [
+    {
+      "stream_count": 1,
+      "cuda_active": true,
+      "fps": 860.64229,
+      "fps_gain_vs_single_stream": 1.0,
+      "max_abs_error": 0.0,
+      "stages_ms": {
+        "host_input_copy": {
+          "p50_ms": 0.110565,
+          "p99_ms": 0.153058,
+          "p999_ms": 0.166717
+        },
+        "h2d": {
+          "p50_ms": 0.083968,
+          "p99_ms": 0.105984,
+          "p999_ms": 0.110848
+        },
+        "normalize_kernel": {
+          "p50_ms": 0.025088,
+          "p99_ms": 0.028864,
+          "p999_ms": 0.029632
+        },
+        "d2h": {
+          "p50_ms": 0.286144,
+          "p99_ms": 0.30608,
+          "p999_ms": 0.30624
+        },
+        "host_output_copy": {
+          "p50_ms": 0.623024,
+          "p99_ms": 0.687755,
+          "p999_ms": 0.690785
+        },
+        "end_to_end": {
+          "p50_ms": 1.153896,
+          "p99_ms": 1.244863,
+          "p999_ms": 1.251191
+        },
+        "cpu_fallback": {
+          "p50_ms": 0.0,
+          "p99_ms": 0.0,
+          "p999_ms": 0.0
+        }
+      }
+    },
+    {
+      "stream_count": 2,
+      "cuda_active": true,
+      "fps": 1184.526074,
+      "fps_gain_vs_single_stream": 1.376328,
+      "max_abs_error": 0.0,
+      "stages_ms": {
+        "host_input_copy": {
+          "p50_ms": 0.108025,
+          "p99_ms": 0.156955,
+          "p999_ms": 0.158511
+        },
+        "h2d": {
+          "p50_ms": 0.08592,
+          "p99_ms": 0.100704,
+          "p999_ms": 0.131488
+        },
+        "normalize_kernel": {
+          "p50_ms": 0.027264,
+          "p99_ms": 0.030432,
+          "p999_ms": 0.030688
+        },
+        "d2h": {
+          "p50_ms": 0.2864,
+          "p99_ms": 0.304608,
+          "p999_ms": 0.308736
+        },
+        "host_output_copy": {
+          "p50_ms": 0.677187,
+          "p99_ms": 0.76411,
+          "p999_ms": 0.764187
+        },
+        "end_to_end": {
+          "p50_ms": 1.664152,
+          "p99_ms": 1.873667,
+          "p999_ms": 1.95836
+        },
+        "cpu_fallback": {
+          "p50_ms": 0.0,
+          "p99_ms": 0.0,
+          "p999_ms": 0.0
+        }
+      }
+    }
+  ]
+}
