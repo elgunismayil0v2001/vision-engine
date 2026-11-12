@@ -8,3 +8,5 @@ scipy==1.15.3
 # Week 2 ONNX export and CPU parity checks.
 onnx==1.20.1
 onnxruntime==1.31.1
+# Week 4: pull the pinned Voxel51 VisDrone snapshot without FiftyOne.
+huggingface_hub==2.4.0

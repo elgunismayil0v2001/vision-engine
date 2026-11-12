@@ -9,7 +9,7 @@ Primary machine is a Mac M2 Air (no CUDA). GPU work is Colab/Kaggle later; every
 
 See [AGENTS.md](AGENTS.md) for milestones and engineering rules.
 
-## Current milestone: week 3 (quantisation, pruning, and benchmark harness)
+## Current milestone: week 4 (VisDrone detector fine-tuning)
 
 The Week 3 harness compares the trained baseline with globally pruned, dynamic int8, and pruned+int8 variants. It evaluates top-1 accuracy on validation images and benchmarks CPU batch-1 latency in isolated processes.
 
@@ -90,6 +90,47 @@ On the Mac M2 Air CPU, the trained checkpoint produced these maximum absolute lo
 
 The CTest suite also compares the C++ RGB-to-NCHW normalizer with torchvision on identical uint8 pixels. These checks validate inference and normalization parity; they do not measure C++ accuracy on the full Flowers102 validation split.
 
+## Week 4: VisDrone detector fine-tuning
+
+The detector is torchvision's `fasterrcnn_mobilenet_v3_large_320_fpn` initialized
+with `FasterRCNN_MobileNet_V3_Large_320_FPN_Weights.COCO_V1`. Its final box
+predictor is replaced with 10 VisDrone classes plus background. The dataset
+loader converts the pinned Voxel51 export's normalized boxes into pixel `xyxy`
+boxes, and keeps `ignore_regions` and `others` out of the loss and evaluation.
+Validation reports class-averaged 101-point AP at IoU 0.50:0.05:0.95 and AP at
+IoU 0.50.
+
+Download the full train and validation splits, then train using the pinned
+settings:
+
+```bash
+python -m train.download_visdrone --config train/configs/visdrone.yaml
+python -m train.detector --config train/configs/visdrone.yaml --device auto
+```
+
+The downloader also supports seeded subsets. The local smoke run used 16
+training images and all 548 validation images:
+
+```bash
+python -m train.download_visdrone --train-samples 16
+python -m train.detector --config train/configs/visdrone_smoke.yaml --device cpu
+```
+
+That smoke run is a pipeline check, not a final detector-quality result. It
+trained one epoch on 16 of 6,471 train images; its low mAP reflects this small
+training sample. The committed config uses all 6,471 train and 548 validation
+images for 10 epochs. Checkpoints are written periodically and can be resumed
+with `--resume`. For an ephemeral Colab session, mount Drive and pass the same
+Drive paths as `--data-root` and `--output-dir` on both commands, then resume
+from `<output-dir>/last.pt` after reconnecting. The automatic device selection
+uses CUDA when available and CPU otherwise; `--device cpu` forces the fallback.
+
+| Run | Train images | Epochs | Validation images | mAP@[.50:.95] | mAP@.50 |
+|---|---:|---:|---:|---:|---:|
+| Local smoke, seed 42 | 16 | 1 | 548 | 0.20% | 0.67% |
+
+The raw run record, including per-class AP and hardware/software metadata, is [bench/visdrone/raw.json](bench/visdrone/raw.json). Local run metadata and checkpoints are also written under `outputs/visdrone2019_detector_cpu_smoke/`; datasets and model checkpoints are ignored by git. VisDrone is treated as non-commercial and share-alike because available license statements differ. The dataset mirror is [Voxel51/VisDrone2019-DET](https://huggingface.co/datasets/Voxel51/VisDrone2019-DET); cite Zhu et al., [“Detection and Tracking Meet Drones Challenge,” IEEE TPAMI (2021)](https://doi.org/10.1109/TPAMI.2021.3119563).
+
 Tests (synthetic tensors; no Flowers102 download):
 
 ```bash
@@ -100,4 +141,4 @@ black --check train export optimize tests
 
 ## Status
 
-Week 1's full Flowers102 run, Week 2's ONNX/C++ inference and parity gate, and Week 3's measured optimization table are complete.
+Week 1's full Flowers102 run, Week 2's ONNX/C++ inference and parity gate, and Week 3's measured optimization table are complete. Week 4's resumable VisDrone pipeline and full validation-split metric are implemented; the reported local smoke metric uses 16 training images, and the configured 10-epoch full training run remains for Colab/Kaggle.
