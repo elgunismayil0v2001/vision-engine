@@ -9,7 +9,7 @@ Primary machine is a Mac M2 Air (no CUDA). GPU work is Colab/Kaggle later; every
 
 See [AGENTS.md](AGENTS.md) for milestones and engineering rules.
 
-## Current milestone: week 4 (VisDrone detector fine-tuning)
+## Current milestone: week 5 (image preprocessing kernels)
 
 The Week 3 harness compares the trained baseline with globally pruned, dynamic int8, and pruned+int8 variants. It evaluates top-1 accuracy on validation images and benchmarks CPU batch-1 latency in isolated processes.
 
@@ -131,6 +131,47 @@ uses CUDA when available and CPU otherwise; `--device cpu` forces the fallback.
 
 The raw run record, including per-class AP and hardware/software metadata, is [bench/visdrone/raw.json](bench/visdrone/raw.json). Local run metadata and checkpoints are also written under `outputs/visdrone2019_detector_cpu_smoke/`; datasets and model checkpoints are ignored by git. VisDrone is treated as non-commercial and share-alike because available license statements differ. The dataset mirror is [Voxel51/VisDrone2019-DET](https://huggingface.co/datasets/Voxel51/VisDrone2019-DET); cite Zhu et al., [“Detection and Tracking Meet Drones Challenge,” IEEE TPAMI (2021)](https://doi.org/10.1109/TPAMI.2021.3119563).
 
+## Week 5: OpenMP, NEON, and CUDA preprocessing
+
+The scalar RGB-to-NCHW normalizer is the reference. The OpenMP variant uses a
+static schedule and a caller-specified thread count. ARM64 builds use NEON; other
+architectures fall back to scalar. `ENABLE_CUDA` defaults to `OFF`. When enabled,
+`CudaPreprocessor` allocates device buffers once and reuses them; when no CUDA
+device is present or those allocations fail, it calls the scalar CPU path.
+
+Build and run the CPU tests and benchmark on macOS or Linux:
+
+```bash
+cmake -S cpp -B build/cpp-week5 \
+  -DONNXRUNTIME_ROOT=/tmp/onnxruntime-sdk \
+  -DENABLE_CUDA=OFF -DENABLE_OPENMP=ON
+cmake --build build/cpp-week5
+ctest --test-dir build/cpp-week5 --output-on-failure
+python bench/preprocess/run_benchmark.py \
+  --binary build/cpp-week5/preprocess_benchmark \
+  --output bench/preprocess/macos_m2.json \
+  --width 640 --height 480 --warmup 20 --iterations 200 --threads 4
+```
+
+The Mac M2 Air run used Apple LLVM 21, macOS 27.2.1, a 640×480 deterministic
+input, 20 warmups, and 200 timed calls. NEON output matched the scalar reference
+within 1e-6. OpenMP was not available in this local toolchain, so its row is a
+scalar fallback and is not an OpenMP speed measurement.
+
+| Kernel | Effective threads | p50 (ms) | p99 (ms) | Speedup vs scalar |
+|---|---:|---:|---:|---:|
+| Scalar reference | 1 | 4.771 | 5.923 | 1.00× |
+| OpenMP unavailable; scalar fallback | 1 | 4.757 | 6.162 | 1.00× |
+| ARM NEON | 1 | 4.509 | 5.188 | 1.06× |
+
+For the CUDA build and T4 measurements, open [week5_colab.ipynb](bench/preprocess/week5_colab.ipynb)
+in Colab, select a T4 runtime, set the Drive repository path, then run all cells.
+It builds with `-DENABLE_CUDA=ON`, checks parity and CPU fallback, and writes
+`bench/preprocess/colab_t4.json` to Drive. CUDA timing includes both host/device
+copies and uses preallocated buffers. This workspace has no connected Colab
+runtime, so no CUDA speedup is reported here; the Week 5 GPU measurement remains
+to be run in that notebook.
+
 Tests (synthetic tensors; no Flowers102 download):
 
 ```bash
@@ -141,4 +182,4 @@ black --check train export optimize tests
 
 ## Status
 
-Week 1's full Flowers102 run, Week 2's ONNX/C++ inference and parity gate, and Week 3's measured optimization table are complete. Week 4's resumable VisDrone pipeline and full validation-split metric are implemented; the reported local smoke metric uses 16 training images, and the configured 10-epoch full training run remains for Colab/Kaggle.
+Week 1's full Flowers102 run, Week 2's ONNX/C++ inference and parity gate, and Week 3's measured optimization table are complete. Week 4's resumable VisDrone pipeline and validation metric are implemented; its local smoke run used 16 training images, and the configured full training remains for Colab/Kaggle. Week 5's CPU paths, parity tests, and Mac NEON measurement are complete. Its OpenMP measurement requires an OpenMP toolchain, and its CUDA parity test and T4 measurement remain to be run in Colab.

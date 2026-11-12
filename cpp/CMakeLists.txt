@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.20)
 project(vision_engine LANGUAGES CXX)
 
 option(ENABLE_SANITIZERS "Build C++ targets with AddressSanitizer and UBSan" OFF)
+option(ENABLE_OPENMP "Build the OpenMP preprocessing path when available" ON)
+option(ENABLE_CUDA "Build the optional CUDA preprocessing path" OFF)
 set(ONNXRUNTIME_VERSION "1.31.1" CACHE STRING "Required ONNX Runtime SDK version")
 set(ONNXRUNTIME_ROOT "" CACHE PATH "Root of the ONNX Runtime ${ONNXRUNTIME_VERSION} C++ SDK")
 
@@ -35,11 +37,31 @@ add_library(vision_engine
 )
 target_include_directories(vision_engine PUBLIC include)
 target_compile_features(vision_engine PUBLIC cxx_std_20)
-target_compile_options(vision_engine PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(vision_engine PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:-Wall;-Wextra;-Wpedantic>")
 target_compile_definitions(vision_engine PRIVATE
     VISION_ENGINE_ONNXRUNTIME_VERSION="${ONNXRUNTIME_VERSION}"
 )
 target_link_libraries(vision_engine PUBLIC ONNXRuntime::onnxruntime)
+
+if(ENABLE_OPENMP)
+    find_package(OpenMP QUIET COMPONENTS CXX)
+    if(OpenMP_CXX_FOUND)
+        target_link_libraries(vision_engine PUBLIC OpenMP::OpenMP_CXX)
+        target_compile_definitions(vision_engine PUBLIC VISION_ENGINE_HAS_OPENMP=1)
+    endif()
+endif()
+
+if(ENABLE_CUDA)
+    enable_language(CUDA)
+    find_package(CUDAToolkit REQUIRED)
+    target_sources(vision_engine PRIVATE src/preprocess_cuda.cu)
+    target_compile_definitions(vision_engine PUBLIC VISION_ENGINE_HAS_CUDA=1)
+    target_link_libraries(vision_engine PUBLIC CUDA::cudart)
+    set_target_properties(vision_engine PROPERTIES
+        CUDA_STANDARD 20
+        CUDA_STANDARD_REQUIRED ON
+    )
+endif()
 
 add_executable(vision_engine_cli src/main.cpp)
 target_compile_features(vision_engine_cli PRIVATE cxx_std_20)
@@ -53,6 +75,16 @@ target_link_libraries(vision_engine_allocation_probe PRIVATE vision_engine)
 
 if(UNIX)
     set_target_properties(vision_engine_cli PROPERTIES
+        BUILD_RPATH "${ONNXRUNTIME_ROOT}/lib"
+    )
+endif()
+
+add_executable(preprocess_benchmark src/preprocess_benchmark.cpp)
+target_compile_features(preprocess_benchmark PRIVATE cxx_std_20)
+target_compile_options(preprocess_benchmark PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(preprocess_benchmark PRIVATE vision_engine)
+if(UNIX)
+    set_target_properties(preprocess_benchmark PROPERTIES
         BUILD_RPATH "${ONNXRUNTIME_ROOT}/lib"
     )
 endif()
@@ -77,6 +109,19 @@ if(BUILD_TESTING)
     target_compile_options(vision_engine_tests PRIVATE -Wall -Wextra -Wpedantic)
     target_link_libraries(vision_engine_tests PRIVATE vision_engine GTest::gtest_main)
     add_test(NAME vision_engine_tests COMMAND vision_engine_tests)
+    add_test(
+        NAME preprocess_benchmark_smoke
+        COMMAND preprocess_benchmark
+            --width 19 --height 7 --warmup 1 --iterations 3 --threads 2
+    )
+
+    if(ENABLE_CUDA)
+        add_executable(vision_engine_cuda_tests tests/preprocess_cuda_test.cpp)
+        target_compile_features(vision_engine_cuda_tests PRIVATE cxx_std_20)
+        target_compile_options(vision_engine_cuda_tests PRIVATE -Wall -Wextra -Wpedantic)
+        target_link_libraries(vision_engine_cuda_tests PRIVATE vision_engine GTest::gtest_main)
+        add_test(NAME vision_engine_cuda_tests COMMAND vision_engine_cuda_tests)
+    endif()
 
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
     add_test(
