@@ -14,7 +14,6 @@ from optimize.benchmark import (
 )
 from optimize.config import BenchmarkConfig
 from torch import nn
-from torch.utils.data import DataLoader, TensorDataset
 
 
 def test_benchmark_config_rejects_invalid_settings() -> None:
@@ -28,7 +27,6 @@ def test_benchmark_config_rejects_invalid_settings() -> None:
         num_threads=1,
         pruning_amount=0.5,
         quantization_backend="qnnpack",
-        calibration_batches=1,
     )
 
     with pytest.raises(ValueError, match="benchmark_iterations"):
@@ -47,28 +45,22 @@ def test_pruning_removes_masks_and_keeps_requested_sparsity() -> None:
     assert "weight_mask" not in model[0]._buffers
 
 
-def test_static_int8_quantization_runs_on_cpu() -> None:
+def test_dynamic_int8_quantization_runs_on_cpu() -> None:
     engines = torch.backends.quantized.supported_engines
     backend = next(
         engine for engine in ("qnnpack", "x86", "fbgemm") if engine in engines
     )
-    model = nn.Sequential(
-        nn.Conv2d(3, 4, kernel_size=3, padding=1),
-        nn.ReLU(),
-        nn.AdaptiveAvgPool2d((1, 1)),
-        nn.Flatten(),
-        nn.Linear(4, 2),
-    ).eval()
-    images = torch.rand(4, 3, 8, 8)
-    labels = torch.zeros(4, dtype=torch.long)
-    loader = DataLoader(TensorDataset(images, labels), batch_size=2)
+    model = nn.Sequential(nn.Flatten(), nn.Linear(12, 2)).eval()
+    images = torch.rand(4, 3, 2, 2)
 
-    quantized = _quantize_model(model, loader, backend=backend, calibration_batches=2)
+    quantized = _quantize_model(model, backend=backend)
 
     with torch.inference_mode():
         logits = quantized(images[:1])
     assert logits.shape == (1, 2)
-    assert any("quantized" in type(module).__module__ for module in quantized.modules())
+    assert any(
+        "quantized.dynamic" in type(module).__module__ for module in quantized.modules()
+    )
 
 
 def test_percentile_interpolates_between_samples() -> None:
@@ -96,7 +88,6 @@ def test_benchmark_summary_writes_markdown_csv_and_raw_json(tmp_path) -> None:
         num_threads=1,
         pruning_amount=0.5,
         quantization_backend="qnnpack",
-        calibration_batches=1,
     )
     row = {
         "variant": "baseline",

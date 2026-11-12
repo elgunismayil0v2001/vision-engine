@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import csv
-import itertools
 import json
 import os
 import platform
@@ -17,8 +16,7 @@ from typing import Any
 import numpy as np
 import torch
 from torch import nn
-from torch.ao.quantization import QConfigMapping, get_default_qconfig
-from torch.ao.quantization.quantize_fx import convert_fx, prepare_fx
+from torch.ao.quantization import quantize_dynamic
 from torch.nn.utils import prune
 from torch.utils.data import DataLoader
 
@@ -77,9 +75,7 @@ def _prune_model(model: nn.Module, amount: float) -> float:
 
 def _quantize_model(
     model: nn.Module,
-    train_loader: DataLoader,
     backend: str,
-    calibration_batches: int,
 ) -> nn.Module:
     if backend not in torch.backends.quantized.supported_engines:
         raise ValueError(
@@ -87,24 +83,9 @@ def _quantize_model(
             f"{torch.backends.quantized.supported_engines}"
         )
     torch.backends.quantized.engine = backend
-    qconfig_mapping = QConfigMapping().set_global(get_default_qconfig(backend))
-    batches = iter(train_loader)
-    try:
-        first_batch = next(batches)
-    except StopIteration as exc:
-        raise ValueError(
-            "training split is empty; cannot calibrate quantisation"
-        ) from exc
-    first_images, _ = first_batch
-    example_inputs = (first_images[:1].cpu(),)
-    prepared = prepare_fx(model.eval(), qconfig_mapping, example_inputs)
-
-    # Calibrate on training data, never on the held-out validation split.
-    with torch.inference_mode():
-        calibration = itertools.chain([first_batch], batches)
-        for images, _ in itertools.islice(calibration, calibration_batches):
-            prepared(images.cpu())
-    return convert_fx(prepared).eval()
+    # MobileNet is convolution-heavy. Dynamic int8 keeps convolutions in FP32
+    # and quantizes Linear weights, which preserves accuracy on this CPU path.
+    return quantize_dynamic(model.eval(), {nn.Linear}, dtype=torch.qint8).eval()
 
 
 def _percentile(values: list[float], pct: float) -> float:
@@ -185,7 +166,7 @@ def _run_worker(cfg: BenchmarkConfig, variant: str) -> dict[str, Any]:
     seed_everything(cfg.seed)
     torch.set_num_threads(cfg.num_threads)
     torch.set_num_interop_threads(cfg.num_threads)
-    train_loader, val_loader, _ = build_dataloaders(train_cfg)
+    _, val_loader, _ = build_dataloaders(train_cfg)
     model = _load_model(train_cfg, cfg.checkpoint)
 
     pruned = variant in {"pruned", "pruned_int8"}
@@ -194,9 +175,7 @@ def _run_worker(cfg: BenchmarkConfig, variant: str) -> dict[str, Any]:
     if quantized:
         model = _quantize_model(
             model,
-            train_loader,
             cfg.quantization_backend,
-            cfg.calibration_batches,
         )
 
     parity_dir = Path(cfg.output_dir) / ".parity_logits"
@@ -268,7 +247,7 @@ def _write_summary(
         "train_config": cfg.train_config,
         "quantization_backend": cfg.quantization_backend,
         "pruning_amount": cfg.pruning_amount,
-        "calibration_batches": cfg.calibration_batches,
+        "quantization_method": "dynamic int8 for nn.Linear modules",
     }
     payload = {"metadata": metadata, "results": rows}
     (output_dir / "raw.json").write_text(json.dumps(payload, indent=2) + "\n")
@@ -284,6 +263,7 @@ def _write_summary(
         f"threads: {cfg.num_threads}; warmup: {cfg.warmup_iterations}; "
         f"iterations: {cfg.benchmark_iterations}.",
         "",
+        "Dynamic int8 quantizes Linear layers only; convolution layers remain FP32. "
         "Latency is per single CPU inference. Peak RSS is isolated per variant "
         "process. Pruned weights are saved as dense tensors; sparsity is shown "
         "separately because unstructured pruning alone does not shrink a dense file.",

@@ -20,7 +20,6 @@ class BenchmarkConfig:
     num_threads: int
     pruning_amount: float
     quantization_backend: str
-    calibration_batches: int
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> BenchmarkConfig:
@@ -36,5 +35,3 @@ class BenchmarkConfig:
             raise ValueError("num_threads must be positive")
         if not 0.0 <= self.pruning_amount < 1.0:
             raise ValueError("pruning_amount must be in [0, 1)")
-        if self.calibration_batches < 1:
-            raise ValueError("calibration_batches must be positive")

@@ -8,4 +8,3 @@ benchmark_iterations: 200
 num_threads: 1
 pruning_amount: 0.5
 quantization_backend: qnnpack
-calibration_batches: 32
