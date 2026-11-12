@@ -1,0 +1,13 @@
+.git
+.venv
+build
+data
+outputs
+checkpoints
+.pytest_cache
+.ruff_cache
+__pycache__
+*.pt
+*.pth
+*.onnx
+*.ckpt

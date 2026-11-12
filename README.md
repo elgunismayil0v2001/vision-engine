@@ -5,11 +5,48 @@ Real-time aerial object detection engine, built in two layers:
 1. **Core (weeks 1–3):** train a small classifier, export ONNX, run it from C++20, then quantise/prune and benchmark.
 2. **Vision (weeks 4–7):** fine-tune a torchvision detector on VisDrone, add preprocessing kernels and a GPU video path.
 
-Primary machine is a Mac M2 Air (no CUDA). GPU work is Colab/Kaggle later; every CUDA path will have a CPU fallback. VisDrone is treated as **non-commercial** (licence text is inconsistent). Do not use Ultralytics YOLO.
+Primary machine is a Mac M2 Air (no CUDA). GPU work runs on Colab/Kaggle; CUDA paths have tested CPU fallbacks. VisDrone is treated as **non-commercial** (licence text is inconsistent). Do not use Ultralytics YOLO.
 
 See [AGENTS.md](AGENTS.md) for milestones and engineering rules.
 
-## Current milestone: week 6 (CUDA video preprocessing pipeline)
+## Architecture
+
+```mermaid
+flowchart LR
+  subgraph Core[Core classifier path]
+    Flowers[Flowers102] --> Train[MobileNetV3-Small training]
+    Train --> Checkpoint[PyTorch checkpoint]
+    Checkpoint --> Export[Dynamic-batch ONNX export]
+    Export --> Engine[C++20 inference engine]
+    Engine --> ORT[ONNX Runtime CPU]
+  end
+
+  subgraph Kernels[Image preprocessing]
+    RGB[RGB uint8 image] --> Ref[Scalar reference]
+    RGB --> Parallel[OpenMP / ARM NEON / optional CUDA]
+    Ref --> Tensor[ImageNet-normalized NCHW]
+    Parallel --> Tensor
+  end
+
+  subgraph Video[Week 6 video preprocessing]
+    Frames[Already-decoded RGB frames] --> Pinned[Pinned host buffers]
+    Pinned --> Streams[CUDA streams: H2D / normalize / D2H]
+    Streams --> Batch[Normalized NCHW frames]
+    Frames --> CPU[CPU fallback]
+    CPU --> Batch
+  end
+
+  subgraph Detector[Separate detector training path]
+    VisDrone[VisDrone2019-DET] --> FasterRCNN[Torchvision Faster R-CNN fine-tuning]
+    FasterRCNN --> Metrics[Validation AP metrics]
+  end
+```
+
+The C++ ONNX engine runs the classifier. The VisDrone detector training and the
+video preprocessing benchmark are separate paths; the benchmark does not decode
+video or run detector inference.
+
+## Current milestone: week 7 (CI, Docker, and write-up)
 
 The Week 3 harness compares the trained baseline with globally pruned, dynamic int8, and pruned+int8 variants. It evaluates top-1 accuracy on validation images and benchmarks CPU batch-1 latency in isolated processes.
 
@@ -207,14 +244,62 @@ Tesla T4. The [raw Week 6 result](bench/video/week6_t4.json) includes p99.9,
 driver details, exact metadata, and the source commit. The measurement covers
 synthetic already-decoded frames, not video decoding or detector inference.
 
+## Week 7: CPU CI and Docker
+
+The GitHub Actions workflow runs on Ubuntu 24.04 for pushes and pull requests.
+It installs CPU-only PyTorch, runs pytest and Python format checks, downloads the
+pinned ONNX Runtime 1.31.1 C++ SDK, then builds and runs CTest with ASan and UBSan.
+CUDA is disabled. A dependent job builds the CPU Docker image and smoke-tests
+the CLI preprocessing command.
+
+Build the image locally and preprocess a raw RGB frame (the input file must hold
+exactly `width × height × 3` bytes):
+
+```bash
+docker build --file docker/Dockerfile --tag vision-engine:cpu .
+mkdir -p outputs
+docker run --rm \
+  --volume "$PWD/inputs:/inputs:ro" \
+  --volume "$PWD/outputs:/outputs" \
+  vision-engine:cpu \
+  preprocess 640 480 /inputs/frame.rgb /outputs/frame.nchw.f32
+```
+
+The image contains the C++ CLI, preprocessing benchmark, and ONNX Runtime shared
+library. It does not contain model weights or datasets; mount those as needed.
+The Docker build is CPU-only and does not install a CUDA toolkit.
+
+## Limitations
+
+- The C++ ONNX path demonstrates classifier inference. The VisDrone Faster R-CNN
+  is trained and evaluated in Python and is not integrated into the C++ engine
+  or Week 6 video pipeline.
+- The reported detector result is a one-epoch smoke run on 16 training images,
+  not a full-data VisDrone model-quality result. VisDrone is treated as
+  non-commercial because the available license statements conflict.
+- Week 6 uses synthetic, already-decoded frames on one Colab T4. Two streams
+  improved measured throughput, while the measured per-frame end-to-end p99 was
+  higher than with one stream. These results do not include decoding, detector
+  inference, or camera I/O and are not production-kernel comparisons.
+- The ONNX Runtime allocation probe currently counts 24 C++ `operator new`
+  calls per inference on the recorded Mac run. This misses C `malloc` calls and
+  does not meet the project's zero-allocation goal.
+- Unstructured pruning without fine-tuning sharply reduced classifier accuracy
+  and did not shrink the dense state dict in the measured run. Dynamic int8
+  retained accuracy for that checkpoint and hardware.
+- CI and Docker exercise CPU paths only. CUDA compilation and performance are
+  validated separately in Colab; the local Mac cannot compile or run CUDA.
+
 Tests (synthetic tensors; no Flowers102 download):
 
 ```bash
 pytest
-ruff check train export optimize tests
-black --check train export optimize tests
+ruff check train export optimize tests \
+  bench/preprocess/run_benchmark.py bench/video/run_video_benchmark.py
+black --check train export optimize tests \
+  bench/preprocess/run_benchmark.py bench/video/run_video_benchmark.py
 ```
 
 ## Status
 
-Week 1's full Flowers102 run, Week 2's ONNX/C++ inference and parity gate, and Week 3's measured optimization table are complete. Week 4's resumable VisDrone pipeline and validation metric are implemented; its local smoke run used 16 training images, and the configured full training remains for Colab/Kaggle. Week 5's OpenMP, NEON, and CUDA parity and preprocessing measurements are recorded in the CPU and T4 logs. Week 6's stream and pinned-memory pipeline is implemented, and its Colab T4 throughput and per-stage latency measurements are recorded above.
+Weeks 1–3 are complete with the recorded Flowers102 training, ONNX/C++ parity, and optimization table. Week 4's resumable VisDrone pipeline is implemented; its reported local smoke run used 16 training images, and full-data training remains for Colab/Kaggle. Week 5's OpenMP, NEON, and CUDA parity and preprocessing measurements are recorded in the CPU and T4 logs. Week 6's stream and pinned-memory pipeline and Colab T4 throughput/stage measurements are recorded above. Week 7 adds Ubuntu CPU CI, sanitizer checks, and a CPU Docker image; the GitHub Actions result must be confirmed after this change is pushed.

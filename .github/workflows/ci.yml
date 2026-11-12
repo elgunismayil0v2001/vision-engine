@@ -1,0 +1,107 @@
+name: CPU CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Ubuntu CPU tests and sanitizers
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      ONNXRUNTIME_VERSION: 1.31.1
+      ONNXRUNTIME_ROOT: ${{ runner.temp }}/onnxruntime-sdk
+      BUILD_DIR: ${{ runner.temp }}/vision-engine-build
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install CPU-only PyTorch and project dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            --index-url https://download.pytorch.org/whl/cpu \
+            torch==2.6.0+cpu torchvision==0.21.0+cpu
+          python -m pip install -r requirements-dev.txt
+
+      - name: Check Python tests and formatting
+        run: |
+          python -m pytest
+          ruff check train export optimize tests \
+            bench/preprocess/run_benchmark.py \
+            bench/video/run_video_benchmark.py
+          black --check train export optimize tests \
+            bench/preprocess/run_benchmark.py \
+            bench/video/run_video_benchmark.py
+
+      - name: Download the pinned ONNX Runtime C++ SDK
+        run: |
+          mkdir -p "$ONNXRUNTIME_ROOT"
+          curl --fail --location --silent --show-error \
+            "https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}.tgz" \
+            | tar -xz --strip-components=1 -C "$ONNXRUNTIME_ROOT"
+
+      - name: Configure CPU build with ASan and UBSan
+        run: |
+          cmake -S cpp -B "$BUILD_DIR" \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DONNXRUNTIME_ROOT="$ONNXRUNTIME_ROOT" \
+            -DPython3_EXECUTABLE="$(command -v python)" \
+            -DENABLE_CUDA=OFF \
+            -DENABLE_OPENMP=ON \
+            -DENABLE_SANITIZERS=ON \
+            -DBUILD_TESTING=ON
+
+      - name: Build and run C++ tests
+        run: |
+          cmake --build "$BUILD_DIR" --parallel 2
+          ctest --test-dir "$BUILD_DIR" --output-on-failure
+
+  docker:
+    name: CPU Docker image smoke test
+    runs-on: ubuntu-24.04
+    needs: test
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the CPU runtime image
+        run: docker build --file docker/Dockerfile --tag vision-engine:ci .
+
+      - name: Smoke test the container preprocessing command
+        env:
+          TEST_DIR: ${{ runner.temp }}/vision-engine-docker-smoke
+        run: |
+          mkdir -p "$TEST_DIR"
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+
+          Path(os.environ["TEST_DIR"], "rgb.bin").write_bytes(
+              bytes([0, 127, 255, 255, 64, 32])
+          )
+          PY
+          docker run --rm \
+            --volume "$TEST_DIR:/smoke" \
+            vision-engine:ci \
+            preprocess 2 1 /smoke/rgb.bin /smoke/nchw.f32
+          python3 - <<'PY'
+          from pathlib import Path
+          import math
+          import os
+          import struct
+
+          output = Path(os.environ["TEST_DIR"], "nchw.f32").read_bytes()
+          values = struct.unpack("6f", output)
+          assert all(math.isfinite(value) for value in values)
+          print(f"container wrote {len(output)} output bytes")
+          PY
