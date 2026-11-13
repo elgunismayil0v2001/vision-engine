@@ -165,8 +165,9 @@ uses CUDA when available and CPU otherwise; `--device cpu` forces the fallback.
 For the full run, use [bench/visdrone/train_colab.ipynb](bench/visdrone/train_colab.ipynb).
 It mounts Drive and stores the dataset, checkpoints, and live metrics there. The
 configured run performs 16,180 training batches and ten full validation passes;
-plan for several hours and possibly multiple Colab sessions. Exact full-run time
-has not been measured. After reconnecting, rerun the setup, paths, download, and
+the provided Colab run took 1 hour 37 minutes from training start to finish,
+with the dataset already downloaded. Future time will depend on the attached GPU
+and Drive throughput. After reconnecting, rerun the setup, paths, download, and
 training cells; the notebook resumes automatically from Drive's
 `<output-dir>/last.pt`.
 When training finishes, it copies `summary.json` as `raw.json`, plus
@@ -175,9 +176,15 @@ Colab's Drive mount; Kaggle would need separate Drive authentication setup.
 
 | Run | Train images | Epochs | Validation images | mAP@[.50:.95] | mAP@.50 |
 |---|---:|---:|---:|---:|---:|
-| Local smoke, seed 42 | 16 | 1 | 548 | 0.20% | 0.67% |
+| Full CUDA run, seed 42 | 6,471 | 10 | 548 | 2.65% | 5.50% |
 
-The raw run record, including per-class AP and hardware/software metadata, is [bench/visdrone/raw.json](bench/visdrone/raw.json). Local run metadata and checkpoints are also written under `outputs/visdrone2019_detector_cpu_smoke/`; datasets and model checkpoints are ignored by git. VisDrone is treated as non-commercial and share-alike because available license statements differ. The dataset mirror is [Voxel51/VisDrone2019-DET](https://huggingface.co/datasets/Voxel51/VisDrone2019-DET); cite Zhu et al., [“Detection and Tracking Meet Drones Challenge,” IEEE TPAMI (2021)](https://doi.org/10.1109/TPAMI.2021.3119563).
+The full run's final summary is [raw.json](bench/visdrone/raw.json), with
+per-epoch values in [metrics.jsonl](bench/visdrone/metrics.jsonl) and its
+configuration/environment in [run.json](bench/visdrone/run.json). VisDrone is
+treated as non-commercial and share-alike because available license statements
+differ. The dataset mirror is [Voxel51/VisDrone2019-DET](https://huggingface.co/datasets/Voxel51/VisDrone2019-DET);
+cite Zhu et al., [“Detection and Tracking Meet Drones Challenge,” IEEE TPAMI
+(2021)](https://doi.org/10.1109/TPAMI.2021.3119563).
 
 ## Week 5: OpenMP, NEON, and CUDA preprocessing
 
@@ -285,9 +292,12 @@ The Docker build is CPU-only and does not install a CUDA toolkit.
 - The C++ ONNX path demonstrates classifier inference. The VisDrone Faster R-CNN
   is trained and evaluated in Python and is not integrated into the C++ engine
   or Week 6 video pipeline.
-- The reported detector result is a one-epoch smoke run on 16 training images,
-  not a full-data VisDrone model-quality result. VisDrone is treated as
-  non-commercial because the available license statements conflict.
+- The full configured detector run completed on all 6,471 training and 548
+  validation images. Its single seed-42 run reached 2.65% mAP@[.50:.95] and
+  5.50% mAP@.50, which remains a modest baseline rather than a tuned detector.
+  Run metadata records CUDA on Linux x86_64 but omits the GPU model, limiting
+  hardware-specific reproducibility. VisDrone is treated as non-commercial
+  because the available license statements conflict.
 - Week 6 uses synthetic, already-decoded frames on one Colab T4. Two streams
   improved measured throughput, while the measured per-frame end-to-end p99 was
   higher than with one stream. These results do not include decoding, detector
