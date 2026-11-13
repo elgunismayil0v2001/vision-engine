@@ -176,7 +176,7 @@ Colab's Drive mount; Kaggle would need separate Drive authentication setup.
 
 | Run | Train images | Epochs | Validation images | mAP@[.50:.95] | mAP@.50 |
 |---|---:|---:|---:|---:|---:|
-| Full CUDA run, seed 42 | 6,471 | 10 | 548 | 2.65% | 5.50% |
+| Baseline (320px), seed 42 | 6,471 | 10 | 548 | 2.65% | 5.50% |
 
 The full run's final summary is [raw.json](bench/visdrone/raw.json), with
 per-epoch values in [metrics.jsonl](bench/visdrone/metrics.jsonl) and its
@@ -298,6 +298,13 @@ The Docker build is CPU-only and does not install a CUDA toolkit.
   Run metadata records CUDA on Linux x86_64 but omits the GPU model, limiting
   hardware-specific reproducibility. VisDrone is treated as non-commercial
   because the available license statements conflict.
+- The baseline factory call used torchvision's default resize of `min_size=320`
+  and `max_size=640`; `max_detections_per_image=100` also limits returned boxes
+  and may cap recall. With the configured 10x learning-rate drops every three
+  epochs, mAP@[.50:.95] changed from 2.59% at epoch 5 to 2.65% at epoch 10.
+  These are plausible contributors, not isolated causal tests. The separate
+  [640px config](train/configs/visdrone_640.yaml) raises resize/detection limits
+  and changes the schedule, but has not been run and has no result yet.
 - Week 6 uses synthetic, already-decoded frames on one Colab T4. Two streams
   improved measured throughput, while the measured per-frame end-to-end p99 was
   higher than with one stream. These results do not include decoding, detector

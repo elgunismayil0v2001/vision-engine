@@ -1,0 +1,32 @@
+# Higher-resolution follow-up to the 320px baseline.
+# A 1024px long-edge cap keeps landscape frames near 576x1024 when the short
+# edge is targeted at 640, while limiting activation memory on Colab GPUs.
+seed: 42
+dataset_root: data/visdrone2019-det
+dataset_repo: Voxel51/VisDrone2019-DET
+dataset_revision: 3c3b9e9bd44c91121c1fc19fce428f0e6b71bba2
+model_name: fasterrcnn_mobilenet_v3_large_320_fpn
+num_classes: 11
+use_coco_weights: true
+min_size: 640
+max_size: 1024
+epochs: 6
+batch_size: 4
+learning_rate: 0.005
+momentum: 0.9
+weight_decay: 0.0005
+lr_step_size: 4
+lr_gamma: 0.1
+trainable_backbone_layers: 3
+horizontal_flip_probability: 0.5
+score_threshold: 0.001
+max_detections_per_image: 300
+checkpoint_every_steps: 100
+num_workers: 2
+torch_threads: 4
+download_workers: 8
+output_dir: outputs/visdrone2019_detector_640
+max_train_samples: null
+max_val_samples: null
+iou_thresholds: [0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95]
+recall_points: 101

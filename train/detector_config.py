@@ -36,6 +36,9 @@ class DetectorConfig:
     max_val_samples: int | None
     iou_thresholds: list[float]
     recall_points: int
+    # Preserve torchvision's low-resolution factory defaults for existing YAML.
+    min_size: int = 320
+    max_size: int = 640
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> DetectorConfig:
@@ -50,6 +53,8 @@ class DetectorConfig:
             raise ValueError(f"unsupported detector model: {self.model_name}")
         if self.num_classes != 11:
             raise ValueError("VisDrone uses 10 foreground classes plus background")
+        if self.min_size < 1 or self.max_size < 1:
+            raise ValueError("detector resize dimensions must be positive")
         if self.epochs < 1 or self.batch_size < 1:
             raise ValueError("epochs and batch_size must be positive")
         if self.learning_rate <= 0 or self.weight_decay < 0:

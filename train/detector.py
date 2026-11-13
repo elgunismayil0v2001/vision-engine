@@ -55,6 +55,8 @@ def build_detector(cfg: DetectorConfig, *, use_coco_weights: bool) -> torch.nn.M
         trainable_backbone_layers=(
             cfg.trainable_backbone_layers if weights is not None else None
         ),
+        min_size=cfg.min_size,
+        max_size=cfg.max_size,
         box_score_thresh=cfg.score_threshold,
         box_detections_per_img=cfg.max_detections_per_image,
     )

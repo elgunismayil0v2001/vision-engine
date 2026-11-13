@@ -119,6 +119,31 @@ def test_detector_replaces_coco_predictor_with_visdrone_classes() -> None:
 
     assert model.roi_heads.box_predictor.cls_score.out_features == 11
     assert model.roi_heads.box_predictor.bbox_pred.out_features == 44
+    assert cfg.min_size == 320
+    assert cfg.max_size == 640
+    assert model.transform.min_size == (320,)
+    assert model.transform.max_size == 640
+
+
+def test_640_config_applies_resize_and_detection_cap() -> None:
+    cfg = DetectorConfig.from_yaml("train/configs/visdrone_640.yaml")
+
+    model = build_detector(cfg, use_coco_weights=False)
+
+    assert model.transform.min_size == (640,)
+    assert model.transform.max_size == 1024
+    assert model.roi_heads.detections_per_img == 300
+
+
+def test_640_config_raises_resize_and_recall_limits() -> None:
+    cfg = DetectorConfig.from_yaml("train/configs/visdrone_640.yaml")
+
+    assert cfg.min_size == 640
+    assert cfg.max_size == 1024
+    assert cfg.max_detections_per_image == 300
+    assert cfg.epochs == 6
+    assert cfg.lr_step_size == 4
+    assert cfg.output_dir == "outputs/visdrone2019_detector_640"
 
 
 def test_detector_can_force_cpu_fallback() -> None:
