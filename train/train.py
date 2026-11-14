@@ -19,7 +19,7 @@ from train.seed import seed_everything
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Train the week-1 classifier.")
+    parser = argparse.ArgumentParser(description="Train the part-1 classifier.")
     parser.add_argument(
         "--config",
         default="train/configs/baseline.yaml",

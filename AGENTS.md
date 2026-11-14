@@ -9,9 +9,9 @@ well-tested steps over clever ones, and explain non-obvious choices in comments 
 A real-time aerial object detection engine in two layers, built to demonstrate C++20, PyTorch,
 deployment, optimisation and benchmarking discipline.
 
-- **Core layer (weeks 1-3), model-agnostic:** train a small classifier in PyTorch, export to ONNX,
+- **Core layer (parts 1-3), model-agnostic:** train a small classifier in PyTorch, export to ONNX,
   run it from a C++20 engine, optimise (int8 quantisation, pruning), benchmark honestly.
-- **Vision layer (weeks 4-7):** fine-tune a detector on drone imagery (VisDrone2019-DET), add
+- **Vision layer (parts 4-7):** fine-tune a detector on drone imagery (VisDrone2019-DET), add
   OpenMP / ARM NEON / CUDA image-preprocessing kernels, a GPU video pipeline with CUDA streams
   and pinned memory, and CPU-only CI.
 
@@ -41,7 +41,7 @@ vision-engine/
 
 ## Build milestones (work in this order)
 
-| Week | Build | Done when |
+| Part | Build | Done when |
 |---|---|---|
 | 1 | Train baseline classifier (MobileNet-class, Oxford-IIIT Pet or Flowers102 via `torchvision.datasets`) | One command reproduces training; fixed seeds; metrics logged |
 | 2 | ONNX export + C++ run | PyTorch vs ONNX Runtime vs C++ outputs match within tolerance |

@@ -2,12 +2,16 @@
 
 Real-time aerial object detection engine, built in two layers:
 
-1. **Core (weeks 1–3):** train a small classifier, export ONNX, run it from C++20, then quantise/prune and benchmark.
-2. **Vision (weeks 4–7):** fine-tune a torchvision detector on VisDrone, add preprocessing kernels and a GPU video path.
+1. **Core (parts 1–3):** train a small classifier, export ONNX, run it from C++20, then quantise/prune and benchmark.
+2. **Vision (parts 4–7):** fine-tune a torchvision detector on VisDrone, add preprocessing kernels and a GPU video path.
 
 Primary machine is a Mac M2 Air (no CUDA). GPU work runs on Colab/Kaggle; CUDA paths have tested CPU fallbacks. VisDrone is treated as **non-commercial** (licence text is inconsistent). Do not use Ultralytics YOLO.
 
 See [AGENTS.md](AGENTS.md) for milestones and engineering rules.
+
+## AI assistance
+
+This project was built with AI coding agents (Claude, Codex). I set the scope and design, ran the training and GPU experiments on Colab, reviewed the results, and wrote up the findings. Parts of the CUDA, quantisation and detector code were generated and reviewed with agent help, and I’m still learning these areas.
 
 ## Architecture
 
@@ -28,7 +32,7 @@ flowchart LR
     Parallel --> Tensor
   end
 
-  subgraph Video[Week 6 video preprocessing]
+  subgraph Video[Part 6 video preprocessing]
     Frames[Already-decoded RGB frames] --> Pinned[Pinned host buffers]
     Pinned --> Streams[CUDA streams: H2D / normalize / D2H]
     Streams --> Batch[Normalized NCHW frames]
@@ -46,15 +50,15 @@ The C++ ONNX engine runs the classifier. The VisDrone detector training and the
 video preprocessing benchmark are separate paths; the benchmark does not decode
 video or run detector inference.
 
-## Current milestone: week 7 (CI, Docker, and write-up)
+## Current milestone: part 7 (CI, Docker, and write-up)
 
-The Week 3 harness compares the trained baseline with globally pruned, dynamic int8, and pruned+int8 variants. It evaluates top-1 accuracy on validation images and benchmarks CPU batch-1 latency in isolated processes.
+The Part 3 harness compares the trained baseline with globally pruned, dynamic int8, and pruned+int8 variants. It evaluates top-1 accuracy on validation images and benchmarks CPU batch-1 latency in isolated processes.
 
 ```bash
 python -m optimize --config optimize/configs/flowers102.yaml
 ```
 
-The command expects `outputs/flowers102_mobilenetv3_small/best.pt` from the Week 1 training run. It writes `results.md`, `results.csv`, and `raw.json` plus one state-dict artifact per variant under `bench/flowers102/`. `raw.json` records the git hash, hardware, software versions, fixed thread count, warmup, and iteration count. The reported memory is peak process RSS, measured in a fresh process for each variant.
+The command expects `outputs/flowers102_mobilenetv3_small/best.pt` from the Part 1 training run. It writes `results.md`, `results.csv`, and `raw.json` plus one state-dict artifact per variant under `bench/flowers102/`. `raw.json` records the git hash, hardware, software versions, fixed thread count, warmup, and iteration count. The reported memory is peak process RSS, measured in a fresh process for each variant.
 
 The report includes top-1 agreement and cosine similarity against baseline logits for each variant, including int8. Dynamic int8 quantises the classifier's `Linear` layers; MobileNet's convolution layers remain float32. Pruning removes the temporary masks before saving, so pruned weights stay dense and the file may not shrink; the table reports zero-weight sparsity separately.
 
@@ -80,11 +84,11 @@ pip install -r requirements-dev.txt
 python -m train --config train/configs/baseline.yaml
 ```
 
-The full Flowers102 baseline run and Week 3 CPU comparison are complete.
+The full Flowers102 baseline run and Part 3 CPU comparison are complete.
 
-## Week 2: ONNX export and C++ inference
+## Part 2: ONNX export and C++ inference
 
-Export the Week 1 checkpoint with a dynamic batch axis, then run the C++20 CPU engine. The ONNX file and JSON sidecar are written under `outputs/` and are ignored by git.
+Export the Part 1 checkpoint with a dynamic batch axis, then run the C++20 CPU engine. The ONNX file and JSON sidecar are written under `outputs/` and are ignored by git.
 
 ```bash
 pip install -r requirements-dev.txt
@@ -106,7 +110,7 @@ ctest --test-dir build/cpp --output-on-failure
 
 For AddressSanitizer and UndefinedBehaviorSanitizer, repeat the CMake build with `-DENABLE_SANITIZERS=ON`.
 
-For Linux x86_64, use the `onnxruntime-linux-x64-1.31.1.tgz` asset in place of the macOS SDK. CMake uses installed GoogleTest 1.15.2 or fetches that exact tag. The CTest suite checks RGB preprocessing against torchvision, then checks PyTorch, Python ONNX Runtime, and the C++ executable on dynamic batch sizes 1 and 2. The parity test uses a deterministic small model and does not download Flowers102. The runtime CLI accepts caller-provided float32 NCHW buffers and writes logits to a float32 file; its preprocessing command converts RGB uint8 pixels to the same ImageNet-normalized NCHW representation as Week 1.
+For Linux x86_64, use the `onnxruntime-linux-x64-1.31.1.tgz` asset in place of the macOS SDK. CMake uses installed GoogleTest 1.15.2 or fetches that exact tag. The CTest suite checks RGB preprocessing against torchvision, then checks PyTorch, Python ONNX Runtime, and the C++ executable on dynamic batch sizes 1 and 2. The parity test uses a deterministic small model and does not download Flowers102. The runtime CLI accepts caller-provided float32 NCHW buffers and writes logits to a float32 file; its preprocessing command converts RGB uint8 pixels to the same ImageNet-normalized NCHW representation as Part 1.
 
 The C++ engine allocates reusable input and output tensors at construction for batch sizes from 1 through the configured maximum, then copies to and from those buffers on each call. CTest warms batches 1 and 2 and counts global C++ `operator new` calls across 100 inference calls. On this Mac with ONNX Runtime 1.31.1, the synthetic model currently reports 24 calls per inference across the engine and runtime. That does not satisfy the project's zero-allocation target; the counter also cannot observe allocations made through C `malloc`. Use `ctest --verbose` to see the allocation probe output.
 
@@ -127,7 +131,7 @@ On the Mac M2 Air CPU, the trained checkpoint produced these maximum absolute lo
 
 The CTest suite also compares the C++ RGB-to-NCHW normalizer with torchvision on identical uint8 pixels. These checks validate inference and normalization parity; they do not measure C++ accuracy on the full Flowers102 validation split.
 
-## Week 4: VisDrone detector fine-tuning
+## Part 4: VisDrone detector fine-tuning
 
 The detector is torchvision's `fasterrcnn_mobilenet_v3_large_320_fpn` initialized
 with `FasterRCNN_MobileNet_V3_Large_320_FPN_Weights.COCO_V1`. Its final box
@@ -155,38 +159,64 @@ python -m train.detector --config train/configs/visdrone_smoke.yaml --device cpu
 
 That smoke run is a pipeline check, not a final detector-quality result. It
 trained one epoch on 16 of 6,471 train images; its low mAP reflects this small
-training sample. The committed config uses all 6,471 train and 548 validation
-images for 10 epochs. Checkpoints are written periodically and can be resumed
-with `--resume`. For an ephemeral Colab session, mount Drive and pass the same
-Drive paths as `--data-root` and `--output-dir` on both commands, then resume
-from `<output-dir>/last.pt` after reconnecting. The automatic device selection
-uses CUDA when available and CPU otherwise; `--device cpu` forces the fallback.
+training sample. The full 320px baseline and 640px follow-up each used all 6,471
+training and 548 validation images. Checkpoints are written periodically and
+can be resumed with `--resume`. For an ephemeral Colab session, mount Drive and
+pass the same Drive paths as `--data-root` and `--output-dir` on both commands,
+then resume from `<output-dir>/last.pt` after reconnecting. The automatic device
+selection uses CUDA when available and CPU otherwise; `--device cpu` forces the
+fallback.
 
-For the full run, use [bench/visdrone/train_colab.ipynb](bench/visdrone/train_colab.ipynb).
+For GPU runs, use [bench/visdrone/train_colab.ipynb](bench/visdrone/train_colab.ipynb).
 It mounts Drive and stores the dataset, checkpoints, and live metrics there. The
-configured run performs 16,180 training batches and ten full validation passes;
-the provided Colab run took 1 hour 37 minutes from training start to finish,
-with the dataset already downloaded. Future time will depend on the attached GPU
-and Drive throughput. After reconnecting, rerun the setup, paths, download, and
-training cells; the notebook resumes automatically from Drive's
-`<output-dir>/last.pt`.
-When training finishes, it copies `summary.json` as `raw.json`, plus
-`metrics.jsonl` and `run.json`, to the Drive results folder. The notebook uses
-Colab's Drive mount; Kaggle would need separate Drive authentication setup.
+notebook defaults to the higher-resolution config; to reproduce the original
+baseline, select `visdrone.yaml` in its paths cell. The baseline ran for 10
+epochs (16,180 training batches), while the 640px follow-up ran for 6 epochs
+(9,708 batches) using [visdrone_640.yaml](train/configs/visdrone_640.yaml).
+The recorded baseline took 1 hour 37 minutes and the 640px run about 1 hour 20
+minutes after the dataset was available. Actual time depends on the GPU and
+Drive throughput. The 640px run used CUDA on Linux x86_64, Python 3.13.16,
+PyTorch 2.6.0+cu124, torchvision 0.21.0+cu124, and 4 Torch threads; the GPU
+model was not recorded. After reconnecting, rerun the setup, paths, download,
+and training cells; the notebook resumes automatically from Drive's
+`<output-dir>/last.pt`. When training finishes, it copies `summary.json` as
+`raw.json`, plus `metrics.jsonl` and `run.json`, to the Drive results folder.
+The notebook uses Colab's Drive mount; Kaggle would need separate Drive
+authentication setup.
 
-| Run | Train images | Epochs | Validation images | mAP@[.50:.95] | mAP@.50 |
-|---|---:|---:|---:|---:|---:|
-| Baseline (320px), seed 42 | 6,471 | 10 | 548 | 2.65% | 5.50% |
+| Run | Resize min/max | Train images | Epochs | Validation images | Best epoch | Best mAP@[.50:.95] | Final mAP@[.50:.95] | Final mAP@.50 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Baseline, seed 42 | 320 / 640 | 6,471 | 10 | 548 | 10 | 2.65% | 2.65% | 5.50% |
+| 640px follow-up, seed 42 | 640 / 1,024 | 6,471 | 6 | 548 | 5 | 7.79% | 7.71% | 15.05% |
 
-The full run's final summary is [raw.json](bench/visdrone/raw.json), with
-per-epoch values in [metrics.jsonl](bench/visdrone/metrics.jsonl) and its
-configuration/environment in [run.json](bench/visdrone/run.json). VisDrone is
-treated as non-commercial and share-alike because available license statements
-differ. The dataset mirror is [Voxel51/VisDrone2019-DET](https://huggingface.co/datasets/Voxel51/VisDrone2019-DET);
+The 640px run's best mAP@[.50:.95] was 7.79% at epoch 5; its final epoch-6
+metrics were 7.71% mAP@[.50:.95] and 15.05% mAP@.50. Final epoch-6 AP by class
+at IoU 0.50:0.05:0.95 was:
+
+| Class | AP@[.50:.95] |
+|---|---:|
+| Pedestrians | 3.25% |
+| People | 2.28% |
+| Bicycle | 1.07% |
+| Car | 24.19% |
+| Van | 11.27% |
+| Truck | 9.87% |
+| Tricycle | 4.24% |
+| Awning tricycle | 2.99% |
+| Bus | 13.78% |
+| Motor | 4.16% |
+
+The baseline summary, per-epoch metrics, and run metadata are in
+[raw.json](bench/visdrone/raw.json), [metrics.jsonl](bench/visdrone/metrics.jsonl),
+and [run.json](bench/visdrone/run.json). The 640px follow-up artifacts are in
+[raw.json](bench/visdrone_640/raw.json), [metrics.jsonl](bench/visdrone_640/metrics.jsonl),
+and [run.json](bench/visdrone_640/run.json). VisDrone is treated as
+non-commercial and share-alike because available license statements differ.
+The dataset mirror is [Voxel51/VisDrone2019-DET](https://huggingface.co/datasets/Voxel51/VisDrone2019-DET);
 cite Zhu et al., [“Detection and Tracking Meet Drones Challenge,” IEEE TPAMI
 (2021)](https://doi.org/10.1109/TPAMI.2021.3119563).
 
-## Week 5: OpenMP, NEON, and CUDA preprocessing
+## Part 5: OpenMP, NEON, and CUDA preprocessing
 
 The scalar RGB-to-NCHW normalizer is the reference. The OpenMP variant uses a
 static schedule and a caller-specified thread count. ARM64 builds use NEON; other
@@ -197,13 +227,13 @@ device is present or those allocations fail, it calls the scalar CPU path.
 Build and run the CPU tests and benchmark on macOS or Linux:
 
 ```bash
-cmake -S cpp -B build/cpp-week5 \
+cmake -S cpp -B build/cpp-part5 \
   -DONNXRUNTIME_ROOT=/tmp/onnxruntime-sdk \
   -DENABLE_CUDA=OFF -DENABLE_OPENMP=ON
-cmake --build build/cpp-week5
-ctest --test-dir build/cpp-week5 --output-on-failure
+cmake --build build/cpp-part5
+ctest --test-dir build/cpp-part5 --output-on-failure
 python bench/preprocess/run_benchmark.py \
-  --binary build/cpp-week5/preprocess_benchmark \
+  --binary build/cpp-part5/preprocess_benchmark \
   --output bench/preprocess/macos_m2.json \
   --width 640 --height 480 --warmup 20 --iterations 200 --threads 4
 ```
@@ -227,13 +257,13 @@ latency for the full call. The CUDA measurement includes host/device copies.
 Hardware, compiler, git revision, warmup/iteration settings, p99.9, and parity
 error are in the [Mac raw log](bench/preprocess/macos_m2.json) and [Colab T4 raw log](bench/preprocess/colab_t4.json).
 
-## Week 6: CUDA video preprocessing pipeline
+## Part 6: CUDA video preprocessing pipeline
 
 `CudaVideoPipeline` accepts contiguous, already-decoded RGB frames. Its CUDA
 path allocates pinned host buffers, device buffers, and nonblocking streams once
 at construction. Frames alternate across stream slots; H2D copy, normalization,
 and D2H copy are queued asynchronously. The CPU fallback normalizes each frame
-with the Week 5 scalar reference. Tests compare both modes against that
+with the Part 5 scalar reference. Tests compare both modes against that
 reference. This stage does not include video decoding or detector inference.
 
 The Colab T4 run processed 120 deterministic 640×480 frames after 16 warmup
@@ -258,11 +288,11 @@ use events; FPS includes CPU input staging and output copies.
 | CPU output copy | 0.623 / 0.688 | 0.677 / 0.764 |
 
 The runtime reported Linux x86_64, 2 logical CPUs, GCC 13.3, CUDA 13.0, and a
-Tesla T4. The [raw Week 6 result](bench/video/week6_t4.json) includes p99.9,
+Tesla T4. The [raw Part 6 result](bench/video/part6_t4.json) includes p99.9,
 driver details, exact metadata, and the source commit. The measurement covers
 synthetic already-decoded frames, not video decoding or detector inference.
 
-## Week 7: CPU CI and Docker
+## Part 7: CPU CI and Docker
 
 The GitHub Actions workflow runs on Ubuntu 24.04 for pushes and pull requests.
 It installs CPU-only PyTorch, runs pytest and Python format checks, downloads the
@@ -291,21 +321,21 @@ The Docker build is CPU-only and does not install a CUDA toolkit.
 
 - The C++ ONNX path demonstrates classifier inference. The VisDrone Faster R-CNN
   is trained and evaluated in Python and is not integrated into the C++ engine
-  or Week 6 video pipeline.
-- The full configured detector run completed on all 6,471 training and 548
-  validation images. Its single seed-42 run reached 2.65% mAP@[.50:.95] and
-  5.50% mAP@.50, which remains a modest baseline rather than a tuned detector.
-  Run metadata records CUDA on Linux x86_64 but omits the GPU model, limiting
-  hardware-specific reproducibility. VisDrone is treated as non-commercial
-  because the available license statements conflict.
-- The baseline factory call used torchvision's default resize of `min_size=320`
-  and `max_size=640`; `max_detections_per_image=100` also limits returned boxes
-  and may cap recall. With the configured 10x learning-rate drops every three
-  epochs, mAP@[.50:.95] changed from 2.59% at epoch 5 to 2.65% at epoch 10.
-  These are plausible contributors, not isolated causal tests. The separate
-  [640px config](train/configs/visdrone_640.yaml) raises resize/detection limits
-  and changes the schedule, but has not been run and has no result yet.
-- Week 6 uses synthetic, already-decoded frames on one Colab T4. Two streams
+  or Part 6 video pipeline.
+- Both full detector runs used all 6,471 training and 548 validation images.
+  The 320px baseline reached 2.65% mAP@[.50:.95]; the 640px follow-up peaked at
+  7.79% at epoch 5 and finished at 7.71% mAP@[.50:.95] and 15.05% mAP@.50.
+  These are single-seed results and remain modest. The CUDA run metadata records
+  Linux x86_64 but omits the GPU model, limiting hardware-specific
+  reproducibility. VisDrone is treated as non-commercial because the available
+  license statements conflict.
+- The 640px follow-up also changed the long-edge resize cap, maximum detections
+  (100 to 300), training duration (10 to 6 epochs), and learning-rate schedule
+  from the baseline. The difference in mAP therefore cannot be attributed to
+  resolution alone. In the baseline, mAP@[.50:.95] changed from 2.59% at epoch 5
+  to 2.65% at epoch 10; in the follow-up, it peaked at epoch 5 and declined
+  slightly by epoch 6.
+- Part 6 uses synthetic, already-decoded frames on one Colab T4. Two streams
   improved measured throughput, while the measured per-frame end-to-end p99 was
   higher than with one stream. These results do not include decoding, detector
   inference, or camera I/O and are not production-kernel comparisons.
@@ -330,4 +360,4 @@ black --check train export optimize tests \
 
 ## Status
 
-Weeks 1–3 are complete with the recorded Flowers102 training, ONNX/C++ parity, and optimization table. Week 4's resumable VisDrone pipeline is implemented; its reported local smoke run used 16 training images, and full-data training remains for Colab/Kaggle. Week 5's OpenMP, NEON, and CUDA parity and preprocessing measurements are recorded in the CPU and T4 logs. Week 6's stream and pinned-memory pipeline and Colab T4 throughput/stage measurements are recorded above. Week 7 adds Ubuntu CPU CI, sanitizer checks, and a CPU Docker image; the GitHub Actions result must be confirmed after this change is pushed.
+Parts 1–3 are complete with the recorded Flowers102 training, ONNX/C++ parity, and optimization table. Part 4's resumable VisDrone pipeline has a local smoke run and two full-data detector runs, with the baseline and 640px follow-up metrics recorded above. Part 5's OpenMP, NEON, and CUDA parity and preprocessing measurements are recorded in the CPU and T4 logs. Part 6's stream and pinned-memory pipeline and Colab T4 throughput/stage measurements are recorded above. Part 7 adds Ubuntu CPU CI, sanitizer checks, and a CPU Docker image; the GitHub Actions result must be confirmed after this change is pushed.

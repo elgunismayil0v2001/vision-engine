@@ -1,4 +1,4 @@
-# Run after training the week-1 Flowers102 baseline.
+# Run after training the part-1 Flowers102 baseline.
 seed: 42
 train_config: train/configs/baseline.yaml
 checkpoint: outputs/flowers102_mobilenetv3_small/best.pt

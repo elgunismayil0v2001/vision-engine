@@ -1,4 +1,4 @@
-# Week 4 detector fine-tuning. Checkpoints can be redirected to mounted Drive
+# Part 4 detector fine-tuning. Checkpoints can be redirected to mounted Drive
 # with --output-dir when running in an ephemeral Colab session.
 seed: 42
 dataset_root: data/visdrone2019-det

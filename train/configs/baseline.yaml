@@ -1,4 +1,4 @@
-# Week 1 baseline: MobileNetV3-Small on Flowers102.
+# Part 1 baseline: MobileNetV3-Small on Flowers102.
 # Reproduce with: python -m train --config train/configs/baseline.yaml
 seed: 42
 dataset: flowers102

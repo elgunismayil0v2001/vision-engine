@@ -1,12 +1,12 @@
-# Runtime pins for week 1 (CPU / Apple MPS). CUDA is optional later and is not
+# Runtime pins for part 1 (CPU / Apple MPS). CUDA is optional later and is not
 # installed here — the Mac M2 Air has no NVIDIA GPU.
 torch==2.6.0
 torchvision==0.21.0
 PyYAML==6.0.2
 # torchvision.datasets.Flowers102 uses scipy.io.loadmat for its labels.
 scipy==1.15.3
-# Week 2 ONNX export and CPU parity checks.
+# Part 2 ONNX export and CPU parity checks.
 onnx==1.20.1
 onnxruntime==1.31.1
-# Week 4: pull the pinned Voxel51 VisDrone snapshot without FiftyOne.
+# Part 4: pull the pinned Voxel51 VisDrone snapshot without FiftyOne.
 huggingface_hub==2.4.0

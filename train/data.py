@@ -67,7 +67,7 @@ def build_dataloaders(
     if cfg.dataset == "synthetic":
         return _synthetic_loaders(cfg)
     if cfg.dataset != "flowers102":
-        raise ValueError(f"unsupported dataset {cfg.dataset!r}; week 1 uses flowers102")
+        raise ValueError(f"unsupported dataset {cfg.dataset!r}; part 1 uses flowers102")
 
     train_ds = datasets.Flowers102(
         root=cfg.data_root,

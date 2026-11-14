@@ -10,7 +10,7 @@ from torchvision.models import MobileNet_V3_Small_Weights, mobilenet_v3_small
 
 def build_model(name: str, num_classes: int, pretrained: bool) -> nn.Module:
     if name != "mobilenet_v3_small":
-        raise ValueError(f"unsupported model {name!r}; week 1 uses mobilenet_v3_small")
+        raise ValueError(f"unsupported model {name!r}; part 1 uses mobilenet_v3_small")
 
     # ImageNet weights initialise the backbone; the classifier is replaced to
     # match Flowers102 (102 classes), not ImageNet's 1000.

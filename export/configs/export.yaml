@@ -1,4 +1,4 @@
-# Week 2: export the week-1 classifier to ONNX (dynamic batch, opset 17).
+# Part 2: export the part-1 classifier to ONNX (dynamic batch, opset 17).
 # python -m export --config export/configs/export.yaml
 seed: 42
 model_name: mobilenet_v3_small
